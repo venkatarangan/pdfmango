@@ -1,0 +1,63 @@
+/* App-level layout that must exist before the script runs (the static empty state in index.html). */
+#app {
+  min-height: calc(100dvh - var(--appbar-h) - 90px);
+}
+
+.empty-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: calc(100dvh - var(--appbar-h) - 120px);
+  padding: 32px 16px;
+}
+.dropcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(560px, 100%);
+  padding: 56px 24px;
+  border: 2px dashed #d4d3d8;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--motion) var(--ease),
+    background-color var(--motion) var(--ease);
+}
+.dropcard:hover {
+  border-color: var(--mango);
+  background: var(--mango-tint);
+}
+.dropcard .icon {
+  width: 48px;
+  height: 48px;
+  color: var(--mango-ink);
+  pointer-events: none;
+}
+.dropcard h1 {
+  pointer-events: none;
+}
+.dropcard .btn {
+  min-width: 160px;
+}
+.empty-line {
+  max-width: 560px;
+  margin: 0;
+  color: var(--text-2);
+  text-align: center;
+}
+
+/* Phones: leave room for the fixed bottom bar. */
+@media (max-width: 720px) {
+  body:has(.bottombar) {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  .appbar nav a {
+    padding: 0 10px;
+  }
+}

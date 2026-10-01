@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>About PDFMango</title>
+    <meta name="description" content="PDFMango is a free, open-source PDF tool that runs entirely in your browser. Why it exists, how to use it, and how it treats your privacy." />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="canonical" href="https://pdf.mangoidiots.com/about/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PDFMango" />
+    <meta property="og:title" content="About PDFMango" />
+    <meta property="og:description" content="Merge, reorder, rotate and compress PDFs. Your files never leave your device." />
+    <meta property="og:url" content="https://pdf.mangoidiots.com/about/" />
+    <meta property="og:image" content="https://pdf.mangoidiots.com/social-preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://pdf.mangoidiots.com/social-preview.png" />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <link rel="stylesheet" href="/src/about/about.css" />
+  </head>
+  <body>
+    <header class="appbar">
+      <a class="brand" href="/" aria-label="PDFMango home">
+        <img src="/brand/mangoidiots-logo.png" alt="" width="36" height="36" />
+        <span>PDFMango</span>
+      </a>
+      <nav aria-label="Site">
+        <a href="/about/" aria-current="page">About</a>
+        <a href="https://github.com/venkatarangan/pdfmango" rel="noopener">Source code</a>
+      </nav>
+    </header>
+
+    <main class="about">
+      <h1>About PDFMango</h1>
+      <p class="lead">
+        PDFMango is a free PDF tool that runs entirely in your browser. It merges PDFs, puts pages in the right order, turns
+        pages that are the wrong way round, deletes the ones you don't need, turns JPG and PNG photos into PDF pages, and makes
+        big files small enough to email. Your files never leave your device: there is no upload, no account and nothing stored.
+      </p>
+      <p><a class="btn btn-filled" href="/">Open PDFMango</a></p>
+
+      <section aria-labelledby="why">
+        <h2 id="why">Why PDFMango</h2>
+        <blockquote>
+          <p>
+            I often need to do simple things with PDFs: put the pages in the right order, turn a page that is the wrong way
+            round, join two documents, or make a large file small enough to send by email. Every time I looked for a tool for
+            this, I ended up with something full of ads, cluttered with features I did not need, wanting me to upload my
+            documents to someone else's server, or working on only one platform. I could not find one that I felt was reliable,
+            safe, modern and simple, all at the same time.
+          </p>
+          <p>
+            So I decided to have one built. PDFMango brings together well-established open-source PDF libraries, and I used
+            Claude AI to design and develop it. Your files never leave your device; all the work happens inside your browser.
+            There are no ads, no sign-ups and no clutter, and it works the same way on Windows, Mac, Linux, Android and iPhone.
+          </p>
+          <p>
+            PDFMango is completely open source. The full source code is on GitHub, free for anyone to use, learn from, improve
+            and benefit from.
+          </p>
+          <footer>— Venkatarangan Thirumalai</footer>
+        </blockquote>
+      </section>
+
+      <section aria-labelledby="how">
+        <h2 id="how">How to use</h2>
+        <ol>
+          <li>Drop PDFs or JPG/PNG images onto the page, or press <strong>Choose files</strong>.</li>
+          <li>Drag pages into the order you want (on a phone, press and hold a page, then drag).</li>
+          <li>Select pages to rotate or delete them; with nothing selected, the toolbar acts on every page.</li>
+          <li>Press <strong>Download</strong> and pick a compression level: Lossless keeps everything, Balanced and Strong shrink photos, Scan makes the smallest file.</li>
+          <li>Your new PDF downloads straight to your device. Change anything and download again whenever you like.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="privacy">
+        <h2 id="privacy">Privacy and analytics</h2>
+        <p>
+          PDFMango uses Google Analytics to count anonymous visits to the live site. Nothing about your files (their names,
+          contents, pages or sizes) is ever collected or sent anywhere; your PDFs and images are processed entirely inside your
+          browser. Analytics runs only on the live site (never while testing locally), waits until the app has fully loaded, and
+          skips itself automatically if you are offline or your browser sends a Do Not Track or Global Privacy Control signal.
+          Google sets its own first-party cookies to measure traffic; see
+          <a href="https://policies.google.com/privacy" rel="noopener">Google's privacy policy</a> for details. PDFMango's full
+          source is open on GitHub.
+        </p>
+        <p>
+          PDFMango itself stores nothing on your device: no cookies, no local storage. To work offline, your browser keeps a
+          copy of the app's own code; it never keeps your files. When you turn a phone photo into a page, PDFMango also removes
+          the photo's hidden details, such as its GPS location, without touching the picture itself.
+        </p>
+      </section>
+
+      <section aria-labelledby="disclaimer">
+        <h2 id="disclaimer">Disclaimer</h2>
+        <p>
+          PDFMango is a free tool, built with AI assistance on open-source libraries, and is provided as is, without warranty of
+          any kind. Always keep a copy of your original files. All names, logos and trademarks belong to their respective owners.
+        </p>
+      </section>
+
+      <section aria-labelledby="open-source">
+        <h2 id="open-source">Open source</h2>
+        <p>
+          The complete source code is on GitHub at
+          <a href="https://github.com/venkatarangan/pdfmango" rel="noopener">github.com/venkatarangan/pdfmango</a>, under the
+          <a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener">GNU Affero General Public License v3.0</a>.
+        </p>
+        <p>PDFMango is built on:</p>
+        <ul class="credits">
+          <li><a href="https://mupdf.com/" rel="noopener">MuPDF.js</a> by Artifex Software — the PDF engine (AGPL-3.0)</li>
+          <li><a href="https://svelte.dev/" rel="noopener">Svelte</a> and <a href="https://vite.dev/" rel="noopener">Vite</a> (MIT)</li>
+          <li><a href="https://github.com/SortableJS/Sortable" rel="noopener">SortableJS</a> — drag and drop (MIT)</li>
+          <li><a href="https://github.com/GoogleChromeLabs/comlink" rel="noopener">Comlink</a> — talking to the background worker (Apache-2.0)</li>
+          <li><a href="https://vite-pwa-org.netlify.app/" rel="noopener">vite-plugin-pwa</a> and Workbox — offline support (MIT)</li>
+          <li><a href="https://fonts.google.com/icons" rel="noopener">Material Symbols</a> — icons (Apache-2.0)</li>
+        </ul>
+        <p>Designed and developed with Claude (Opus 5.5) by Anthropic. The mangoidiots name and logo are Venkatarangan Thirumalai's own branding.</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      PDFMango v%PDFMANGO_VERSION% · Free and open source (AGPL-3.0) ·
+      <a href="https://github.com/venkatarangan/pdfmango" rel="noopener">Source code</a> ·
+      Your files never leave your device · Generated with Claude Opus 5.5 ·
+      A <a href="https://mangoidiots.com" rel="noopener">mangoidiots.com</a> project
+    </footer>
+  </body>
+</html>

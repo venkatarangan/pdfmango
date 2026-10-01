@@ -1,0 +1,268 @@
+/* PDFMango design tokens and base styles, shared by the app and the About page. Light theme only. */
+:root {
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --outline: #e3e3e6;
+  --text: #1c1b1f;
+  --text-2: #5f6368;
+  --mango: #ffa41b;
+  --on-mango: #1c1b1f;
+  --mango-ink: #9a5b00;
+  --mango-tint: #fff3e0;
+  --danger: #b3261e;
+  --scrim: rgb(28 27 31 / 0.4);
+  --snack-bg: #323034;
+
+  --radius: 12px;
+  --pill: 999px;
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.08), 0 1px 3px 1px rgb(0 0 0 / 0.05);
+  --elev-2: 0 1px 2px rgb(0 0 0 / 0.1), 0 2px 6px 2px rgb(0 0 0 / 0.08);
+  --elev-3: 0 4px 8px 3px rgb(0 0 0 / 0.1), 0 1px 3px rgb(0 0 0 / 0.12);
+  --motion: 170ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  --appbar-h: 56px;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 14px/20px var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+h1 {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+}
+h2 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+a {
+  color: var(--mango-ink);
+  text-underline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mango-ink);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Buttons (pill) ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--pill);
+  border: 1px solid transparent;
+  background: transparent;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--motion) var(--ease),
+    box-shadow var(--motion) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-filled {
+  background: var(--mango);
+  color: var(--on-mango);
+}
+.btn-filled:not(:disabled):hover {
+  box-shadow: var(--elev-1);
+  background: #ffad33;
+}
+.btn-outlined {
+  border-color: #c9c8cc;
+  color: var(--text);
+}
+.btn-text {
+  color: var(--mango-ink);
+  padding: 0 12px;
+}
+.btn-outlined:not(:disabled):hover,
+.btn-text:not(:disabled):hover {
+  background: rgb(28 27 31 / 0.06);
+}
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--motion) var(--ease);
+}
+.icon-btn:not(:disabled):hover {
+  background: rgb(28 27 31 / 0.07);
+}
+.icon-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  flex: none;
+}
+
+/* ---- App bar & footer (shared with About) ---- */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--appbar-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 max(12px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-left));
+  background: var(--bg);
+  border-bottom: 1px solid var(--outline);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.brand img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+.appbar nav {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.appbar nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--pill);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+.appbar nav a:hover {
+  background: rgb(28 27 31 / 0.06);
+}
+
+.footer {
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+.footer a {
+  color: var(--mango-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Tooltips for icon buttons (pointer devices only; aria-label is always set) ---- */
+@media (hover: hover) {
+  .tip {
+    position: relative;
+  }
+  .tip:hover::after,
+  .tip:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--snack-bg);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 60;
+  }
+  .tip.tip-above:hover::after,
+  .tip.tip-above:focus-visible::after {
+    top: auto;
+    bottom: calc(100% + 6px);
+  }
+}
