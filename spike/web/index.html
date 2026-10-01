@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; img-src 'self' data: blob: https://*.google-analytics.com https://www.googletagmanager.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'">
+<title>PDFMango spike</title>
+<style>body{font:14px system-ui;margin:16px} #grid{display:grid;grid-template-columns:repeat(auto-fill,160px);gap:12px} canvas{width:160px;border:1px solid #ddd}</style>
+</head>
+<body>
+<h1>PDFMango spike</h1>
+<p id="status">loading…</p>
+<input type="file" id="file" accept=".pdf">
+<div id="grid"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

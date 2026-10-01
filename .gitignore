@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dev-dist/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+# Generated on demand, never committed
+tests/fixtures/large/
+# Throwaway spike: keep the scripts, not their outputs
+spike/node_modules/
+spike/fixtures/
+spike/web/dist/
+spike/web/public/
+spike/out-*.pdf
+spike/*.png
+spike/*-results.json

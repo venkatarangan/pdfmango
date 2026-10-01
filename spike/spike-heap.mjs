@@ -1,0 +1,12 @@
+globalThis.$libmupdf_wasm_Module = {};
+const mupdf = await import('mupdf');
+const fs = await import('node:fs');
+const M = globalThis.$libmupdf_wasm_Module;
+const heap = () => ((M.HEAPU8?.length ?? M.wasmMemory?.buffer.byteLength ?? 0) / 1048576).toFixed(0) + ' MB';
+console.log('keys', Object.keys(M).filter((k) => /HEAP|memory/i.test(k)).join(','), 'start', heap());
+const src = mupdf.Document.openDocument(new Uint8Array(fs.readFileSync(process.argv[2])), 'application/pdf').asPDF();
+console.log('after open', heap());
+const out = new mupdf.PDFDocument(); const map = out.newGraftMap();
+for (let i = 0; i < src.countPages(); i++) map.graftPage(-1, src, i);
+const b = out.saveToBuffer('garbage=deduplicate,compress,compress-fonts,compress-images,objstms');
+console.log('after save', heap(), 'out', (b.getLength() / 1048576).toFixed(0), 'MB');
