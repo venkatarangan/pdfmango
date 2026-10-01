@@ -1,6 +1,6 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
 import * as mupdf from 'mupdf';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const fx = (f: string) => path.resolve(import.meta.dirname, '../fixtures', f);
@@ -234,4 +234,50 @@ test('About page carries the required texts', async ({ page }) => {
   await expect(page.getByText('provided as is, without warranty of any kind')).toBeVisible();
   await expect(page.getByRole('link', { name: 'MuPDF.js' })).toBeVisible();
   await expect(page.locator('footer.footer')).toContainText('Generated with Claude Opus 5.5');
+});
+
+test('works offline after the first visit', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    // Wait until the precache is complete and the worker controls the page.
+    if (!navigator.serviceWorker.controller) await new Promise((r) => navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }));
+    return reg.active?.state;
+  });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Drop PDFs or images here' })).toBeVisible();
+  await addFiles(page, ['tamil-unicode.pdf'], 3); // the WASM engine comes from the cache too
+  await expect(page.locator('.card canvas.loaded')).toHaveCount(3);
+  await page.goto('/about/');
+  await expect(page.getByRole('heading', { name: 'Why PDFMango' })).toBeVisible();
+});
+
+test('1,000 pages load and scroll; page 1,001 is refused with the limit', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('/');
+  await addFiles(page, Array(5).fill('text-200.pdf'), 1000);
+  await page.setInputFiles('input[type=file]', fx('plain.png'));
+  await expect(page.locator('.snack')).toContainText('up to 1,000 pages');
+  await expect(cards(page)).toHaveCount(1000);
+  // Scroll to the end: the last thumbnails render on demand.
+  await cards(page).nth(999).scrollIntoViewIfNeeded();
+  await expect(cards(page).nth(999).locator('canvas.loaded')).toBeVisible({ timeout: 30_000 });
+  const out = await openOutput(await download(page));
+  expect(out.count).toBe(1000);
+  out.doc.destroy();
+});
+
+// Runs only after `npm run fixtures:large` (the 250 MB file is never committed).
+const large = fx('large/large-250mb.pdf');
+test('a ~250 MB PDF loads and exports on desktop Chrome', async ({ page }) => {
+  test.skip(!existsSync(large), 'run npm run fixtures:large first');
+  test.setTimeout(300_000);
+  await page.goto('/');
+  await page.setInputFiles('input[type=file]', large);
+  await expect(cards(page)).not.toHaveCount(0, { timeout: 120_000 });
+  const n = await cards(page).count();
+  const out = await openOutput(await download(page));
+  expect(out.count).toBe(n);
+  out.doc.destroy();
 });

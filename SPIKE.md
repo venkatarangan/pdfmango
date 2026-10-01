@@ -95,7 +95,7 @@ Chrome's CPU throttling (`Emulation.setCPUThrottlingRate 4×`) does **not** slow
 
 ## Test corpus produced
 
-`spike/make-fixtures.mjs` generates every file the spec lists, deterministically. It moves to `scripts/make-fixtures.mjs` in M2, with output in `tests/fixtures/`:
+`spike/make-fixtures.mjs` generates every file the spec lists. Content is reproducible, but the bytes are not: Chromium writes timestamps and document IDs. It moves to `scripts/make-fixtures.mjs` in M2, with output in `tests/fixtures/`:
 
 | File | Size | Notes |
 | --- | --- | --- |

@@ -1,7 +1,8 @@
 // Generates the PDFMango test corpus into ./fixtures (or the dir given as argv[2]).
 // Text PDFs are printed by Chromium (real embedded font subsets, like most PDFs in the wild);
 // images are drawn on a canvas; MuPDF adds encryption, a form field and damage.
-// Usage: npm run fixtures   (or: node scripts/make-fixtures.mjs <outDir> [--large])
+// Usage: npm run fixtures   (or: node scripts/make-fixtures.mjs <outDir>)
+//        npm run fixtures:large   (only the ~245 MB file, just under the 250 MB desktop limit)
 import { chromium } from '@playwright/test';
 import * as mupdf from 'mupdf';
 import fs from 'node:fs';
@@ -25,70 +26,6 @@ async function printHtml(html, opts = {}) {
 }
 
 const css = `body{font:12pt/1.6 "Noto Sans","Noto Sans Tamil",sans-serif;color:#222} h1,h2{color:#9A5B00} .pb{break-after:page}`;
-
-// ---- Tamil Unicode text, embedded fonts ---------------------------------------------------------
-// Public-domain classical verses (Thirukkural, Purananuru, Bharathiyar) plus plain test sentences.
-const TAMIL_MARKER = 'யாதும் ஊரே யாவரும் கேளிர்';
-const tamilPages = [
-  `<h1>தமிழ் சோதனை ஆவணம் — பக்கம் 1</h1>
-   <p>இது ஒரு சோதனை ஆவணம். இதில் உள்ள எழுத்துகள் தேர்ந்தெடுக்கக்கூடியதாகவும் தேடக்கூடியதாகவும் இருக்க வேண்டும்.</p>
-   <h2>திருக்குறள்</h2>
-   <p>அகர முதல எழுத்தெல்லாம் ஆதி<br>பகவன் முதற்றே உலகு</p>
-   <p>கற்றதனால் ஆய பயனென்கொல் வாலறிவன்<br>நற்றாள் தொழாஅர் எனின்</p>`,
-  `<h1>பக்கம் 2 — புறநானூறு</h1>
-   <p>${TAMIL_MARKER}</p>
-   <p>தீதும் நன்றும் பிறர்தர வாரா</p>
-   <p>English mixed in: PDFMango keeps Tamil text selectable after merge and compression.</p>`,
-  `<h1>பக்கம் 3 — பாரதியார்</h1>
-   <p>யாமறிந்த மொழிகளிலே தமிழ்மொழி போல் இனிதாவது எங்கும் காணோம்</p>
-   <p>மூன்றாம் பக்கம். பக்கங்களை மாற்றி அடுக்கிய பிறகும் இந்த வரி சரியாக இருக்க வேண்டும்.</p>`,
-];
-write('tamil-unicode.pdf', await printHtml(
-  `<html lang="ta"><style>${css}</style><body>${tamilPages.map((p, i) => `<section class="${i < tamilPages.length - 1 ? 'pb' : ''}">${p}</section>`).join('')}</body></html>`));
-
-// ---- English + CJK ------------------------------------------------------------------------------
-write('english-cjk.pdf', await printHtml(`<html><style>${css} .cjk{font-family:"Noto Sans CJK SC","Noto Sans CJK JP",sans-serif}</style><body>
-  <section class="pb"><h1>English and CJK test</h1><p>The quick brown fox jumps over the lazy dog.</p>
-  <p class="cjk">这是一个测试文件。所有文字都应该可以选择和搜索。</p>
-  <p class="cjk">日本語のテキストです。ページを並べ替えても文字は残ります。</p>
-  <p class="cjk">한국어 텍스트도 포함되어 있습니다.</p></section>
-  <section><h1>Page 2</h1><p class="cjk">第二页：合并和压缩之后，文字仍然可以复制。</p></section></body></html>`));
-
-// ---- N-page text-only PDFs ----------------------------------------------------------------------
-const LOREM = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ';
-function textDoc(n) {
-  let body = '';
-  for (let i = 1; i <= n; i++) {
-    body += `<section class="${i < n ? 'pb' : ''}"><h1>Page ${i} of ${n}</h1>${`<p>${LOREM.repeat(2)}</p>`.repeat(3)}</section>`;
-  }
-  return `<html><style>${css} h1{font-size:40pt}</style><body>${body}</body></html>`;
-}
-write('text-50.pdf', await printHtml(textDoc(50)));
-write('text-200.pdf', await printHtml(textDoc(200)));
-
-// ---- Bookmarks, internal links, external link (+ a form field added below with MuPDF) -----------
-const linkedPdf = await printHtml(`<html><style>${css}</style><body>
-  <section class="pb"><h1 id="c1">Chapter 1</h1><p>Jump to <a href="#c3">Chapter 3</a>. Visit <a href="https://example.com/">example.com</a>.</p></section>
-  <section class="pb"><h1 id="c2">Chapter 2</h1><p>Back to <a href="#c1">Chapter 1</a>.</p></section>
-  <section><h1 id="c3">Chapter 3</h1><p>Name: (form field to the right)</p></section></body></html>`, { outline: true, tagged: true });
-{
-  const doc = mupdf.Document.openDocument(linkedPdf, 'application/pdf').asPDF();
-  // Hand-build an AcroForm with one text field on page 3.
-  const pageObj = doc.findPage(2);
-  const field = doc.addObject({
-    Type: doc.newName('Annot'), Subtype: doc.newName('Widget'), FT: doc.newName('Tx'),
-    T: doc.newString('name'), V: doc.newString('Venkat'), Rect: [300, 700, 500, 724], F: 4,
-    DA: doc.newString('/Helv 12 Tf 0 g'), P: pageObj,
-  });
-  let annots = pageObj.get('Annots');
-  if (annots.isNull()) { annots = doc.newArray(); pageObj.put('Annots', annots); }
-  annots.push(field);
-  const helv = doc.addObject({ Type: doc.newName('Font'), Subtype: doc.newName('Type1'), BaseFont: doc.newName('Helvetica'), Encoding: doc.newName('WinAnsiEncoding') });
-  const acroForm = doc.addObject({ Fields: [field], NeedAppearances: true, DA: doc.newString('/Helv 12 Tf 0 g'), DR: { Font: { Helv: helv } } });
-  doc.getTrailer().get('Root').put('AcroForm', acroForm);
-  write('bookmarks-links-form.pdf', doc.saveToBuffer('compress').asUint8Array());
-  doc.destroy();
-}
 
 // ---- Canvas images ------------------------------------------------------------------------------
 await page.setContent('<html><body></body></html>');
@@ -155,6 +92,71 @@ function withExif(jpeg, orientation) {
   let i = 2; // skip SOI
   if (jpeg[2] === 0xff && jpeg[3] === 0xe0) i = 4 + ((jpeg[4] << 8) | jpeg[5]); // drop APP0
   return new Uint8Array([0xff, 0xd8, ...app1, ...jpeg.subarray(i)]);
+}
+
+if (!wantLarge) {
+// ---- Tamil Unicode text, embedded fonts ---------------------------------------------------------
+// Public-domain classical verses (Thirukkural, Purananuru, Bharathiyar) plus plain test sentences.
+const TAMIL_MARKER = 'யாதும் ஊரே யாவரும் கேளிர்';
+const tamilPages = [
+  `<h1>தமிழ் சோதனை ஆவணம் — பக்கம் 1</h1>
+   <p>இது ஒரு சோதனை ஆவணம். இதில் உள்ள எழுத்துகள் தேர்ந்தெடுக்கக்கூடியதாகவும் தேடக்கூடியதாகவும் இருக்க வேண்டும்.</p>
+   <h2>திருக்குறள்</h2>
+   <p>அகர முதல எழுத்தெல்லாம் ஆதி<br>பகவன் முதற்றே உலகு</p>
+   <p>கற்றதனால் ஆய பயனென்கொல் வாலறிவன்<br>நற்றாள் தொழாஅர் எனின்</p>`,
+  `<h1>பக்கம் 2 — புறநானூறு</h1>
+   <p>${TAMIL_MARKER}</p>
+   <p>தீதும் நன்றும் பிறர்தர வாரா</p>
+   <p>English mixed in: PDFMango keeps Tamil text selectable after merge and compression.</p>`,
+  `<h1>பக்கம் 3 — பாரதியார்</h1>
+   <p>யாமறிந்த மொழிகளிலே தமிழ்மொழி போல் இனிதாவது எங்கும் காணோம்</p>
+   <p>மூன்றாம் பக்கம். பக்கங்களை மாற்றி அடுக்கிய பிறகும் இந்த வரி சரியாக இருக்க வேண்டும்.</p>`,
+];
+write('tamil-unicode.pdf', await printHtml(
+  `<html lang="ta"><style>${css}</style><body>${tamilPages.map((p, i) => `<section class="${i < tamilPages.length - 1 ? 'pb' : ''}">${p}</section>`).join('')}</body></html>`));
+
+// ---- English + CJK ------------------------------------------------------------------------------
+write('english-cjk.pdf', await printHtml(`<html><style>${css} .cjk{font-family:"Noto Sans CJK SC","Noto Sans CJK JP",sans-serif}</style><body>
+  <section class="pb"><h1>English and CJK test</h1><p>The quick brown fox jumps over the lazy dog.</p>
+  <p class="cjk">这是一个测试文件。所有文字都应该可以选择和搜索。</p>
+  <p class="cjk">日本語のテキストです。ページを並べ替えても文字は残ります。</p>
+  <p class="cjk">한국어 텍스트도 포함되어 있습니다.</p></section>
+  <section><h1>Page 2</h1><p class="cjk">第二页：合并和压缩之后，文字仍然可以复制。</p></section></body></html>`));
+
+// ---- N-page text-only PDFs ----------------------------------------------------------------------
+const LOREM = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ';
+function textDoc(n) {
+  let body = '';
+  for (let i = 1; i <= n; i++) {
+    body += `<section class="${i < n ? 'pb' : ''}"><h1>Page ${i} of ${n}</h1>${`<p>${LOREM.repeat(2)}</p>`.repeat(3)}</section>`;
+  }
+  return `<html><style>${css} h1{font-size:40pt}</style><body>${body}</body></html>`;
+}
+write('text-50.pdf', await printHtml(textDoc(50)));
+write('text-200.pdf', await printHtml(textDoc(200)));
+
+// ---- Bookmarks, internal links, external link (+ a form field added below with MuPDF) -----------
+const linkedPdf = await printHtml(`<html><style>${css}</style><body>
+  <section class="pb"><h1 id="c1">Chapter 1</h1><p>Jump to <a href="#c3">Chapter 3</a>. Visit <a href="https://example.com/">example.com</a>.</p></section>
+  <section class="pb"><h1 id="c2">Chapter 2</h1><p>Back to <a href="#c1">Chapter 1</a>.</p></section>
+  <section><h1 id="c3">Chapter 3</h1><p>Name: (form field to the right)</p></section></body></html>`, { outline: true, tagged: true });
+{
+  const doc = mupdf.Document.openDocument(linkedPdf, 'application/pdf').asPDF();
+  // Hand-build an AcroForm with one text field on page 3.
+  const pageObj = doc.findPage(2);
+  const field = doc.addObject({
+    Type: doc.newName('Annot'), Subtype: doc.newName('Widget'), FT: doc.newName('Tx'),
+    T: doc.newString('name'), V: doc.newString('Venkat'), Rect: [300, 700, 500, 724], F: 4,
+    DA: doc.newString('/Helv 12 Tf 0 g'), P: pageObj,
+  });
+  let annots = pageObj.get('Annots');
+  if (annots.isNull()) { annots = doc.newArray(); pageObj.put('Annots', annots); }
+  annots.push(field);
+  const helv = doc.addObject({ Type: doc.newName('Font'), Subtype: doc.newName('Type1'), BaseFont: doc.newName('Helvetica'), Encoding: doc.newName('WinAnsiEncoding') });
+  const acroForm = doc.addObject({ Fields: [field], NeedAppearances: true, DA: doc.newString('/Helv 12 Tf 0 g'), DR: { Font: { Helv: helv } } });
+  doc.getTrailer().get('Root').put('AcroForm', acroForm);
+  write('bookmarks-links-form.pdf', doc.saveToBuffer('compress').asUint8Array());
+  doc.destroy();
 }
 
 // Phone photos. Display sizes are what the viewer should see after honouring EXIF.
@@ -245,11 +247,13 @@ write('plain.png', await canvasImage({ w: 640, h: 480, seed: 6, type: 'image/png
   write('damaged.pdf', damaged);
 }
 
-// ---- Optional: ~250 MB PDF for the desktop size limit (never committed) -------------------------
+}
+
+// ---- Optional: a PDF just under the 250 MB desktop limit (never committed) -----------------------
 if (wantLarge) {
   const doc = new mupdf.PDFDocument();
   let total = 0, i = 0;
-  while (total < 250 * 1024 * 1024) {
+  while (total < 240 * 1024 * 1024) {
     const jpg = await canvasImage({ w: 4000, h: 3000, seed: 1000 + i, quality: 1 });
     total += jpg.length;
     const img = new mupdf.Image(jpg);
@@ -257,7 +261,7 @@ if (wantLarge) {
     doc.insertPage(-1, doc.addPage([0, 0, 842, 595], 0, { XObject: { I: ref } }, `q 842 0 0 595 0 0 cm /I Do Q`));
     i++;
   }
-  write('large-250mb.pdf', doc.saveToBuffer('').asUint8Array());
+  write('large-250mb.pdf', doc.saveToBuffer('').asUint8Array()); // ~245 MiB
   doc.destroy();
 }
 

@@ -15,3 +15,6 @@ spike/web/public/
 spike/out-*.pdf
 spike/*.png
 spike/*-results.json
+
+# Chrome profiles that Lighthouse can leave behind under WSL
+*lighthouse.*/
