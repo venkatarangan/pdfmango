@@ -30,6 +30,8 @@ Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what 
 8. > in the main app page move the intro line "PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size" to the top, above drop pdfs files. rest of the text can be below "Drop PDFs"
 9. > in prompt-history.md, you mention "read @spec.md and begin your work", but you never shipped spec.md; as you remember I ideated with claude cowork to come up with a detailed plan, which was written as spec.md as the starting point for claude code to work, this background has to be told in brief, and the original spec.md shared in the repo & linked in prompt-history, ensure there are no PII or private information in that. simplify the different files like spec.md, specification.md and initial-prompt.txt files and consolidate. 2) overall, make all the repo files - markdown and docs simple, easy to read, and not too verbose and cluttered.
 
+10. > 1. In the main screen opening text make PDFMango hyperlink to the about page. A separate about pdfmango is not needed. 2. After doing the changes Can you give a preview option so that users can check and then download. Keep it simple. 3. On mobile can you give a share option which can invoke the share card in iPhone or android for sending it to other apps - is it doable.
+
 ## What changed from the plan
 
 | Topic | Plan said | What was built |
@@ -40,4 +42,5 @@ Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what 
 | Settings | Nothing stored; restrictions setting not shown to visitors | A Settings dialog; only the visitor's choices are saved in their browser, never anything about files |
 | Credit line | "Generated with Claude Opus 5.5" in the footer | "Exported with pdf.mangoidiots.com" in each PDF's document properties; the AI credit is on the About page |
 | Footer | Included a Source code link | Source code link is in the app bar only |
+| Preview and Share | Not in the plan | Preview the finished PDF, then Download or Share (system share sheet) |
 | Repo files | `SPECIFICATION.md` and `initial-prompt.txt` | Merged into `spec.md` (the original plan) and this file |

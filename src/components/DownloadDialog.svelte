@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ExportJob } from '../lib/actions.svelte';
+  import { ExportJob, type BuiltPdf } from '../lib/actions.svelte';
   import { levels, MARGINS, planFor } from '../lib/compression';
   import { marginPtFor } from '../lib/settings';
   import { settings } from '../lib/settings.svelte';
@@ -9,8 +9,8 @@
   import Dialog from './Dialog.svelte';
   import Icon from './Icon.svelte';
 
-  type Props = { open: boolean; onclose: () => void };
-  let { open, onclose }: Props = $props();
+  type Props = { open: boolean; onclose: () => void; onpreview: (built: BuiltPdf) => void };
+  let { open, onclose, onpreview }: Props = $props();
 
   const job = new ExportJob();
   let fileName = $state('');
@@ -42,16 +42,22 @@
     return out;
   });
 
+  function exportOptions() {
+    const s = settings.current;
+    return { plan: planFor(level, s), imagePageSize, marginPt: marginPtFor(s, imageMargin), creditLine: s.creditLine };
+  }
+
   async function download(e: SubmitEvent) {
     e.preventDefault();
-    const s = settings.current;
-    const ok = await job.run(fileName, level, {
-      plan: planFor(level, s),
-      imagePageSize,
-      marginPt: marginPtFor(s, imageMargin),
-      creditLine: s.creditLine,
-    });
-    if (ok) onclose();
+    if (await job.run(fileName, level, exportOptions())) onclose();
+  }
+
+  /** Builds the PDF and shows it; Download or Share from there uses the same file. */
+  async function preview() {
+    const built = await job.build(fileName, level, exportOptions());
+    if (!built) return;
+    onclose();
+    onpreview(built);
   }
 
   const pct = $derived(job.progress && job.progress.total > 0 ? Math.round((job.progress.done / job.progress.total) * 100) : 0);
@@ -115,6 +121,7 @@
       <button type="button" class="btn btn-outlined" onclick={() => job.cancel()}>Cancel</button>
     {:else}
       <button type="button" class="btn btn-text" onclick={onclose}>Close</button>
+      <button type="button" class="btn btn-outlined" onclick={preview}><Icon name="preview" /> Preview</button>
       <button type="submit" form="download-form" class="btn btn-filled"><Icon name="download" /> Download</button>
     {/if}
   {/snippet}

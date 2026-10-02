@@ -308,3 +308,44 @@ test('settings: easy choices, remembered in this browser, credit line in the PDF
   await page.getByRole('button', { name: 'Reset all to defaults' }).click();
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
 });
+
+test('preview the finished PDF, then download it without rebuilding @phone', async ({ page }) => {
+  await page.goto('/');
+  await addFiles(page, ['tamil-unicode.pdf', 'phone-portrait-exif6.jpg'], 4);
+  await page.locator('.toolbar .btn-filled, .bottombar .download').locator('visible=true').click();
+  await page.getByRole('dialog', { name: 'Download PDF' }).getByRole('button', { name: 'Preview' }).click();
+  const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
+  await expect(preview).toBeVisible();
+  await expect(preview).toContainText('merged.pdf');
+  await expect(preview.locator('figure')).toHaveCount(4);
+  await expect.poll(() => preview.locator('canvas').first().evaluate((c: HTMLCanvasElement) => c.width)).toBeGreaterThan(0);
+  // Sharing isn't available in this browser, so the button is hidden.
+  await expect(preview.getByRole('button', { name: 'Share' })).toHaveCount(0);
+  const [dl] = await Promise.all([page.waitForEvent('download'), preview.getByRole('button', { name: 'Download' }).click()]);
+  const out = await openOutput(dl);
+  expect(out.count).toBe(4);
+  expect(out.text(0)).toContain('அகர முதல');
+  out.doc.destroy();
+  await expect(preview).toBeHidden();
+});
+
+test('Share hands the PDF to the system share sheet where supported', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { shared?: { name: string; type: string; size: number }[] };
+    Object.assign(navigator, {
+      canShare: (d: ShareData) => !!d.files?.length,
+      share: async (d: ShareData) => {
+        w.shared = (d.files ?? []).map((f) => ({ name: f.name, type: f.type, size: f.size }));
+      },
+    });
+  });
+  await page.goto('/');
+  await addFiles(page, ['tamil-unicode.pdf'], 3);
+  await page.locator('.toolbar .btn-filled').click();
+  await page.getByRole('dialog', { name: 'Download PDF' }).getByRole('button', { name: 'Preview' }).click();
+  const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
+  await preview.getByRole('button', { name: 'Share' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { shared?: unknown }).shared)).toEqual([
+    { name: 'tamil-unicode-edited.pdf', type: 'application/pdf', size: expect.any(Number) },
+  ]);
+});

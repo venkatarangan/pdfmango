@@ -151,8 +151,9 @@ export class ExportJob {
   running = $state(false);
   private cancelled = false;
 
-  async run(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<boolean> {
-    if (this.running || app.pages.length === 0) return false;
+  /** Builds the PDF without downloading it; null when cancelled or failed (the error is reported). */
+  async build(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<BuiltPdf | null> {
+    if (this.running || app.pages.length === 0) return null;
     this.running = true;
     this.cancelled = false;
     app.exporting = true;
@@ -171,17 +172,13 @@ export class ExportJob {
           if (!this.cancelled) this.progress = p;
         }),
       );
-      downloadBytes(result.bytes, name);
       track({ name: 'export', params: { level } });
-      let line = resultLine(inputSize, result.outputSize);
-      if (result.fellBackToLossless) line += '. This file was already well compressed.';
-      notify.show(line);
-      return true;
+      return { bytes: result.bytes, name, inputSize, outputSize: result.outputSize, fellBackToLossless: result.fellBackToLossless };
     } catch (e) {
       const code = errorCode(e);
       if (code !== 'cancelled') reportError(code);
-      else notify.announce('Download cancelled.');
-      return false;
+      else notify.announce('Cancelled.');
+      return null;
     } finally {
       this.running = false;
       this.progress = null;
@@ -190,11 +187,54 @@ export class ExportJob {
     }
   }
 
+  /** Builds and downloads in one go. */
+  async run(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<boolean> {
+    const built = await this.build(fileName, level, opts);
+    if (!built) return false;
+    saveBuilt(built);
+    return true;
+  }
+
   async cancel() {
     if (!this.running) return;
     this.cancelled = true;
     this.progress = { done: 0, total: 1, step: 'Cancelling…' };
     await (await engine()).cancel();
+  }
+}
+
+/** A finished PDF, kept in memory so it can be previewed, downloaded or shared without rebuilding. */
+export type BuiltPdf = { bytes: ArrayBuffer; name: string; inputSize: number; outputSize: number; fellBackToLossless: boolean };
+
+export function resultMessage(b: BuiltPdf): string {
+  const line = resultLine(b.inputSize, b.outputSize);
+  return b.fellBackToLossless ? `${line}. This file was already well compressed.` : line;
+}
+
+/** Downloads a built PDF and reports the size change. */
+export function saveBuilt(b: BuiltPdf) {
+  downloadBytes(b.bytes, b.name);
+  notify.show(resultMessage(b));
+}
+
+/** True where the browser can hand a PDF to other apps (iPhone, Android, some desktops). */
+export function canShareFiles(): boolean {
+  try {
+    const probe = new File([new Uint8Array(1)], 'probe.pdf', { type: 'application/pdf' });
+    return typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/** Opens the system share sheet with the PDF. Must run straight from a tap (browsers require it). */
+export async function shareBuilt(b: BuiltPdf) {
+  const file = new File([b.bytes], b.name, { type: 'application/pdf' });
+  try {
+    await navigator.share({ files: [file], title: b.name });
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') return; // the visitor closed the share sheet
+    notify.error("Sharing didn't work on this device. Use Download instead.");
   }
 }
 

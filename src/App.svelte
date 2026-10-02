@@ -5,6 +5,8 @@
   import { app } from './lib/state.svelte';
   import { notify } from './lib/notify.svelte';
   import ConfirmDialog from './components/ConfirmDialog.svelte';
+  import ResultPreview from './components/ResultPreview.svelte';
+  import type { BuiltPdf } from './lib/actions.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import DownloadDialog from './components/DownloadDialog.svelte';
   import Icon from './components/Icon.svelte';
@@ -18,6 +20,7 @@
   let downloadOpen = $state(false);
   let previewUid = $state<string | null>(null);
   let settingsOpen = $state(false);
+  let built = $state.raw<BuiltPdf | null>(null);
 
   // The gear button lives in the static app bar (index.html), outside this component.
   $effect(() => {
@@ -114,7 +117,7 @@
 
 {#if !working}
   <div class="empty-shell">
-    <p class="lede">PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size. <a href="/about/">About PDFMango →</a></p>
+    <p class="lede"><a href="/about/">PDFMango</a> is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size.</p>
     <!-- The whole card opens the picker; the button is the keyboard and screen-reader route. -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="dropcard" onclick={(e) => e.target === e.currentTarget && chooseFiles()}>
@@ -154,7 +157,8 @@
   </div>
 {/if}
 
-<DownloadDialog open={downloadOpen} onclose={() => (downloadOpen = false)} />
+<DownloadDialog open={downloadOpen} onclose={() => (downloadOpen = false)} onpreview={(b) => (built = b)} />
+<ResultPreview {built} onclose={() => (built = null)} />
 <SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
 <PasswordDialog />
 <Preview uid={previewUid} onclose={() => (previewUid = null)} onnavigate={(uid) => (previewUid = uid)} />

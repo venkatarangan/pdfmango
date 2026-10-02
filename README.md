@@ -22,6 +22,7 @@ A free, open-source PDF tool that runs entirely in your browser. Your files neve
 - Reorder (drag, or Alt+Arrow keys), rotate and delete pages; undo and redo.
 - Photos become upright pages, A4 or original size, with GPS and other hidden details removed.
 - Four compression levels: Lossless, Balanced, Strong and Scan.
+- Preview the finished PDF before downloading, and share it straight to other apps on phones.
 - Keeps Tamil, CJK and all other text selectable.
 - Handles password-protected and damaged PDFs, up to 1,000 pages.
 - Works on phones and offline, with no upload, account or ads.
@@ -47,7 +48,7 @@ If you change Settings, only your choices are saved in your browser. In the GA4 
 2. Drag pages into order.
 3. Select pages to rotate or delete them.
 4. Press **Download** and pick a compression level.
-5. Your new PDF downloads to your device.
+5. Press **Preview** to check the result, then **Download** (or **Share** on a phone).
 
 ## Development
 
