@@ -19,3 +19,17 @@ Claude ran the milestone 1 spike first (see `SPIKE.md`). Every gate item passed,
 | Milestone 2 creates a public GitHub repo 'pdfmango' under your account, pushes to it, and sets up Pages CI. Go ahead? | **Build locally only** (scaffold and commit locally; push later) |
 
 Claude then built milestones 2–6 locally and committed them.
+
+## 2 Oct 2026
+
+### 3. Local check
+
+> launch the app for me to check
+
+Claude served the production build locally (`vite preview`) for review.
+
+### 4. Publish
+
+> ensure no pii or private information gets public. then publish it to github, I have made the DNS changes.
+
+Before publishing, Claude scanned every tracked file and every blob in git history for personal or machine-specific details (user names, home and Windows paths, IP addresses, email addresses, secrets) and checked the metadata inside the fixture PDFs, JPEGs and PNGs. The only finding was the personal email address in the commit metadata; the unpushed commits were rewritten to use the GitHub no-reply address. Claude then created the public repository and enabled GitHub Pages.
