@@ -19,10 +19,12 @@ A free, open-source PDF tool that runs entirely in your browser. Your files neve
 ## Features
 
 - Merge PDFs and JPG/PNG photos into one PDF.
-- Reorder (drag, or Alt+Arrow keys), rotate and delete pages; undo and redo.
+- Reorder (drag, or Alt+Arrow keys), rotate, delete and duplicate pages, insert blank pages, reverse the order, and select odd or even pages; undo and redo.
+- Save just the selected pages as a new PDF, or save pages as PNG or JPG images (Auto picks per page) at screen, standard or print resolution. Phones share up to 10 images at a time; computers get one ZIP.
 - Photos become upright pages, A4 or original size, with GPS and other hidden details removed.
 - Four compression levels: Lossless, Balanced, Strong and Scan.
 - Preview the finished PDF (with its size, and whether it's small enough to email) before downloading, and share it straight to other apps on phones.
+- Downloaded PDFs start with empty document properties: the originals' author, title and hidden XMP data are not copied. You can set a title of your own.
 - Keeps Tamil, CJK and all other text selectable.
 - Handles password-protected and damaged PDFs, up to 1,000 pages.
 - Works on phones and offline, with no upload, account or ads.
@@ -77,7 +79,7 @@ One-time setup, already done for pdf.mangoidiots.com:
 
 ## Configuration
 
-Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics ID, size and page limits, image page size and margins, compression settings, the credit line written into each PDF, and whether restricted PDFs are refused. Visitors can override some of these for themselves in the app's **Settings**.
+Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics ID, size and page limits, image page size and margins, saving pages as images (format, resolutions, the 10-image phone limit), compression settings, the credit line written into each PDF, and whether restricted PDFs are refused. Visitors can override some of these for themselves in the app's **Settings**.
 
 ## Project structure
 

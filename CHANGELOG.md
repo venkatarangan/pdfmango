@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 (October 2026)
+
+- Save pages as images: PNG or JPG (Auto picks per page), at Screen, Standard or Print resolution. Phones share up to 10 images at a time; computers download one ZIP.
+- Save only the selected pages as a PDF.
+- Duplicate pages, insert a blank page, reverse the page order, select odd or even pages; all can be undone.
+- Optional document title; page-level hidden metadata is no longer copied into downloaded PDFs.
+- Settings: default format and resolution for images.
+- Google Analytics switched on for the live site (still skipped offline and with Do Not Track or Global Privacy Control), now on the About page too.
+
 ## 0.1.0 (October 2026)
 
 First release.

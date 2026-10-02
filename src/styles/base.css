@@ -269,6 +269,10 @@ select {
     top: auto;
     bottom: calc(100% + 6px);
   }
+  /* A button whose menu is open shows the menu, not its tooltip. */
+  .tip[aria-expanded='true']::after {
+    content: none;
+  }
 }
 
 /* Narrow screens: keep the app bar on one line. */

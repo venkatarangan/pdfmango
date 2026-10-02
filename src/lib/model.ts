@@ -48,6 +48,34 @@ export function moveSelection(pages: readonly PageRef[], selected: ReadonlySet<s
   return out;
 }
 
+/** Puts a copy of each selected page straight after it. Copies share the source page, so they cost nothing. */
+export function duplicatePages(pages: readonly PageRef[], uids: ReadonlySet<string>, makeUid: () => string = newUid): PageRef[] {
+  return pages.flatMap((p) => (uids.has(p.uid) ? [p, { ...p, uid: makeUid() }] : [p]));
+}
+
+/**
+ * Reverses the order of the selected pages within the positions they occupy (every page when
+ * `uids` is empty); unselected pages stay where they are.
+ */
+export function reversePages(pages: readonly PageRef[], uids: ReadonlySet<string>): PageRef[] {
+  const all = uids.size === 0;
+  const picked = pages.filter((p) => all || uids.has(p.uid)).reverse();
+  let k = 0;
+  return pages.map((p) => (all || uids.has(p.uid) ? picked[k++] : p));
+}
+
+/** Inserts `fresh` after the last selected page, or at the end when nothing is selected. */
+export function insertAfterSelection(pages: readonly PageRef[], uids: ReadonlySet<string>, fresh: PageRef[]): PageRef[] {
+  const last = pages.findLastIndex((p) => uids.has(p.uid));
+  const at = last < 0 ? pages.length : last + 1;
+  return [...pages.slice(0, at), ...fresh, ...pages.slice(at)];
+}
+
+/** Uids of the odd (1st, 3rd, …) or even (2nd, 4th, …) pages, counting from 1 as the grid shows them. */
+export function oddEvenUids(pages: readonly PageRef[], which: 'odd' | 'even'): string[] {
+  return pages.filter((_, i) => (i % 2 === 0) === (which === 'odd')).map((p) => p.uid);
+}
+
 /** Inclusive range of uids between two pages, in page order (for Shift+click). */
 export function rangeBetween(pages: readonly PageRef[], aUid: string, bUid: string): string[] {
   const a = pages.findIndex((p) => p.uid === aUid);

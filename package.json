@@ -1,6 +1,6 @@
 {
   "name": "pdfmango",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Free, open-source PDF tool that runs entirely in the browser: merge, reorder, rotate, delete, images to PDF, compress. Files never leave your device.",
   "license": "AGPL-3.0-or-later",
   "author": "Venkatarangan Thirumalai",

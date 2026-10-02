@@ -3,14 +3,16 @@ import { track } from './analytics';
 import { Comlink, engine, restartEngine } from './engine';
 import { sniff } from './filetypes';
 import { checkPages, checkSize, readDeviceEnv, sizeLimit } from './limits';
+import * as model from './model';
 import { newUid } from './model';
 import { notify } from './notify.svelte';
 import { app } from './state.svelte';
 import { pauseThumbs, resetThumbs } from './thumbs';
-import { finalFileName, defaultFileName } from './filenames';
+import { finalFileName, defaultFileName, pageImageName } from './filenames';
 import { resultLine } from './format';
 import { settings } from './settings.svelte';
-import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportProgress, OpenResult, PageRef } from './types';
+import { zip } from './zip';
+import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportProgress, ImageExportOptions, OpenResult, PageRef, PageSize } from './types';
 
 export const MESSAGES: Record<EngineErrorCode, string> = {
   'wrong-password': 'That password is not right.',
@@ -19,7 +21,7 @@ export const MESSAGES: Record<EngineErrorCode, string> = {
   'image-unreadable': "This image couldn't be read. It may be damaged.",
   'out-of-memory': "This file is too large for this device's memory.",
   cancelled: 'Cancelled.',
-  'export-failed': 'Something went wrong while building the PDF. Your pages are unchanged; please try again.',
+  'export-failed': 'Something went wrong while saving. Your pages are unchanged; please try again.',
 };
 
 /** Worker errors arrive as Errors whose message is the code. */
@@ -144,6 +146,30 @@ function appendPages(sourceId: string, count: number) {
   app.edit((pages) => [...pages, ...fresh]);
 }
 
+/** Inserts a blank page after the last selected page (or at the end), the same size as that page. */
+export async function insertBlankPage() {
+  const tooMany = checkPages(app.pages.length, 1);
+  if (tooMany) return notify.error(tooMany);
+  const ref = app.pages.findLast((p) => app.selection.has(p.uid)) ?? app.pages.at(-1);
+  const [w, h] = ref ? displayedSize(ref) : A4_PT;
+  try {
+    const sourceId = await (await engine()).addBlank(w, h);
+    app.addSource({ id: sourceId, name: 'Blank page', kind: 'blank', pageCount: 1, sizeBytes: 0, pageSizes: [[w, h]] });
+    app.edit((pages) => model.insertAfterSelection(pages, app.selection, [{ uid: newUid(), sourceId, srcIndex: 0, addedRotation: 0 }]));
+    notify.announce('Inserted a blank page.');
+  } catch (e) {
+    reportError(errorCode(e));
+  }
+}
+
+const A4_PT: PageSize = [595, 842];
+
+/** Size of a page as it shows in the grid, including the rotation added in PDFMango. */
+function displayedSize(p: PageRef): PageSize {
+  const [w, h] = app.sources.get(p.sourceId)?.pageSizes[p.srcIndex] ?? A4_PT;
+  return p.addedRotation % 180 ? [h, w] : [w, h];
+}
+
 // ---- Export ---------------------------------------------------------------------------------------------------
 
 export class ExportJob {
@@ -152,18 +178,18 @@ export class ExportJob {
   private cancelled = false;
 
   /** Builds the PDF without downloading it; null when cancelled or failed (the error is reported). */
-  async build(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<BuiltPdf | null> {
-    if (this.running || app.pages.length === 0) return null;
+  async build(fileName: string, level: CompressionLevel, opts: ExportOptions, chosen: readonly PageRef[] = app.pages): Promise<BuiltPdf | null> {
+    if (this.running || chosen.length === 0) return null;
     this.running = true;
     this.cancelled = false;
     app.exporting = true;
     pauseThumbs(true);
-    const used = app.usedSources();
+    const used = app.usedSources(chosen);
     const inputSize = used.reduce((n, s) => n + s.sizeBytes, 0);
     const name = finalFileName(fileName, defaultFileName(used));
     try {
       const api = await engine();
-      const pages = app.pages.map(({ sourceId, srcIndex, addedRotation }) => ({ sourceId, srcIndex, addedRotation }));
+      const pages = chosen.map(({ sourceId, srcIndex, addedRotation }) => ({ sourceId, srcIndex, addedRotation }));
       this.progress = { done: 0, total: pages.length, step: 'Starting' };
       const result = await api.export(
         pages,
@@ -188,8 +214,8 @@ export class ExportJob {
   }
 
   /** Builds and downloads in one go. */
-  async run(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<boolean> {
-    const built = await this.build(fileName, level, opts);
+  async run(fileName: string, level: CompressionLevel, opts: ExportOptions, chosen: readonly PageRef[] = app.pages): Promise<boolean> {
+    const built = await this.build(fileName, level, opts, chosen);
     if (!built) return false;
     saveBuilt(built);
     return true;
@@ -205,6 +231,82 @@ export class ExportJob {
 
 /** A finished PDF, kept in memory so it can be previewed, downloaded or shared without rebuilding. */
 export type BuiltPdf = { bytes: ArrayBuffer; name: string; inputSize: number; outputSize: number; fellBackToLossless: boolean };
+
+/** Pages saved as images, kept in memory until they are shared or downloaded. */
+export type BuiltImages = { files: File[]; totalBytes: number; base: string };
+
+export class ImageJob {
+  progress = $state<ExportProgress | null>(null);
+  running = $state(false);
+  private cancelled = false;
+
+  /** Renders the chosen pages one at a time (so a long job can be cancelled between pages). */
+  async build(base: string, chosen: readonly PageRef[], opts: ImageExportOptions): Promise<BuiltImages | null> {
+    if (this.running || chosen.length === 0) return null;
+    this.running = true;
+    this.cancelled = false;
+    app.exporting = true;
+    pauseThumbs(true);
+    try {
+      const api = await engine();
+      const position = new Map(app.pages.map((p, i) => [p.uid, i + 1]));
+      const files: File[] = [];
+      let totalBytes = 0;
+      for (let i = 0; i < chosen.length; i++) {
+        if (this.cancelled) throw new Error('cancelled');
+        this.progress = { done: i, total: chosen.length, step: `Saving page ${i + 1} of ${chosen.length} as an image` };
+        const { sourceId, srcIndex, addedRotation, uid } = chosen[i];
+        const r = await api.renderImage({ sourceId, srcIndex, addedRotation }, opts);
+        const name = pageImageName(base, position.get(uid) ?? i + 1, app.pages.length, r.ext);
+        files.push(new File([r.bytes], name, { type: r.ext === 'png' ? 'image/png' : 'image/jpeg' }));
+        totalBytes += r.bytes.byteLength;
+      }
+      return { files, totalBytes, base };
+    } catch (e) {
+      const code = errorCode(e);
+      if (code !== 'cancelled') reportError(code);
+      else notify.announce('Cancelled.');
+      return null;
+    } finally {
+      this.running = false;
+      this.progress = null;
+      app.exporting = false;
+      pauseThumbs(false);
+    }
+  }
+
+  cancel() {
+    if (!this.running) return;
+    this.cancelled = true;
+    this.progress = { done: 0, total: 1, step: 'Cancelling…' };
+  }
+}
+
+/** One image downloads as itself; several download as one ZIP (browsers block a burst of downloads). */
+export async function saveImages(b: BuiltImages) {
+  if (b.files.length === 1) return downloadBlob(b.files[0], b.files[0].name);
+  const entries = await Promise.all(b.files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+  downloadBlob(zip(entries), `${b.base}-pages.zip`);
+}
+
+/** True where these images can go to the share sheet (most phones; desktop Chrome caps the count). */
+export function canShareImages(b: BuiltImages): boolean {
+  try {
+    return typeof navigator.canShare === 'function' && navigator.canShare({ files: b.files });
+  } catch {
+    return false;
+  }
+}
+
+/** Opens the system share sheet with every image. Must run straight from a tap. */
+export async function shareImages(b: BuiltImages) {
+  try {
+    await navigator.share({ files: b.files });
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') return;
+    notify.error("Sharing didn't work on this device. Use Download instead.");
+  }
+}
 
 export function resultMessage(b: BuiltPdf): string {
   const line = resultLine(b.inputSize, b.outputSize);
@@ -239,7 +341,11 @@ export async function shareBuilt(b: BuiltPdf) {
 }
 
 export function downloadBytes(bytes: ArrayBuffer, name: string) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), name);
+}
+
+export function downloadBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

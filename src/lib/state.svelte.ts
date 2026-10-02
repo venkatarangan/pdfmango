@@ -21,10 +21,10 @@ class AppState {
   canUndo = $derived(this.history.undo.length > 0);
   canRedo = $derived(this.history.redo.length > 0);
 
-  /** Sources that still contribute at least one page, in first-use order. */
-  usedSources(): SourceInfo[] {
+  /** Sources that contribute at least one of `pages` (by default, every page), in first-use order. */
+  usedSources(pages: readonly PageRef[] = this.pages): SourceInfo[] {
     const seen = new Map<string, SourceInfo>();
-    for (const p of this.pages) {
+    for (const p of pages) {
       const s = this.sources.get(p.sourceId);
       if (s && !seen.has(s.id)) seen.set(s.id, s);
     }

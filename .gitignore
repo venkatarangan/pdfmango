@@ -18,3 +18,6 @@ spike/*-results.json
 
 # Chrome profiles that Lighthouse can leave behind under WSL
 *lighthouse.*/
+
+# Local backup script (holds a path on this machine)
+backup.bat

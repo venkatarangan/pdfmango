@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { insertBlankPage } from '../lib/actions.svelte';
   import { app } from '../lib/state.svelte';
   import * as model from '../lib/model';
   import { notify } from '../lib/notify.svelte';
@@ -35,16 +36,36 @@
     app.select(allSelected ? [] : app.pages.map((p) => p.uid));
   }
 
-  let menuOpen = $state(false);
-  let menu: HTMLDivElement | undefined = $state();
+  function duplicate() {
+    app.edit((p) => model.duplicatePages(p, app.selection));
+    notify.announce(`Duplicated ${plural(count, 'page')}. ${app.pages.length} in total.`);
+  }
+
+  function reverse() {
+    const n = count || app.pages.length;
+    app.edit((p) => model.reversePages(p, app.selection));
+    notify.announce(`Reversed the order of ${plural(n, 'page')}.`);
+  }
+
+  function selectOddEven(which: 'odd' | 'even') {
+    const uids = model.oddEvenUids(app.pages, which);
+    app.select(uids);
+    notify.announce(`Selected ${plural(uids.length, `${which} page`)}.`);
+  }
+
+  // One menu for the desktop toolbar, one for the phone bar; only one is ever open.
+  let menuOpen = $state<'desk' | 'phone' | null>(null);
+  let deskMenu: HTMLDivElement | undefined = $state();
+  let phoneMenu: HTMLDivElement | undefined = $state();
   function menuAction(fn: () => void) {
-    menuOpen = false;
+    menuOpen = null;
     fn();
   }
   $effect(() => {
     if (!menuOpen) return;
+    const menu = menuOpen === 'desk' ? deskMenu : phoneMenu;
     const close = (e: Event) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu?.contains(e.target as Node)) menuOpen = false;
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !menu?.contains(e.target as Node)) menuOpen = null;
     };
     const t = setTimeout(() => {
       document.addEventListener('pointerdown', close);
@@ -57,6 +78,15 @@
     };
   });
 </script>
+
+<!-- Page tools shared by both menus. Each is one undoable edit. -->
+{#snippet pageTools()}
+  <button type="button" role="menuitem" onclick={() => menuAction(duplicate)} disabled={count === 0 || busy}><Icon name="duplicate" />Duplicate selected</button>
+  <button type="button" role="menuitem" onclick={() => menuAction(() => void insertBlankPage())} disabled={busy}><Icon name="blankPage" />Insert blank page</button>
+  <button type="button" role="menuitem" onclick={() => menuAction(reverse)} disabled={empty || busy}><Icon name="reverse" />Reverse order of {scope}</button>
+  <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('odd'))} disabled={empty}><Icon name="selectAll" />Select odd pages</button>
+  <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('even'))} disabled={app.pages.length < 2}><Icon name="selectAll" />Select even pages</button>
+{/snippet}
 
 <!-- Desktop / tablet: sticky toolbar under the app bar -->
 <div class="toolbar" role="toolbar" aria-label="Page actions">
@@ -71,6 +101,12 @@
   <IconButton icon="chevronLeft" label="Move selected left" onclick={() => move(-1)} disabled={count === 0 || busy} />
   <IconButton icon="chevronRight" label="Move selected right" onclick={() => move(1)} disabled={count === 0 || busy} />
   <IconButton icon={allSelected ? 'deselect' : 'selectAll'} label={allSelected ? 'Clear selection' : 'Select all'} onclick={toggleAll} disabled={empty} />
+  <div class="more" bind:this={deskMenu}>
+    <IconButton icon="more" label="More page actions" aria-haspopup="menu" aria-expanded={menuOpen === 'desk'} onclick={() => (menuOpen = menuOpen === 'desk' ? null : 'desk')} />
+    {#if menuOpen === 'desk'}
+      <div class="menu down" role="menu">{@render pageTools()}</div>
+    {/if}
+  </div>
   <span class="sep" aria-hidden="true"></span>
   <IconButton icon="undo" label="Undo (Ctrl+Z)" onclick={() => app.undo()} disabled={!app.canUndo || busy} />
   <IconButton icon="redo" label="Redo (Shift+Ctrl+Z)" onclick={() => app.redo()} disabled={!app.canRedo || busy} />
@@ -91,9 +127,9 @@
   <IconButton icon="rotateLeft" label="Rotate {scope} left" tipAbove onclick={() => rotate(-90)} disabled={empty || busy} />
   <IconButton icon="rotateRight" label="Rotate {scope} right" tipAbove onclick={() => rotate(90)} disabled={empty || busy} />
   <IconButton icon="delete" label="Delete {scope}" tipAbove onclick={remove} disabled={empty || busy} />
-  <div class="more" bind:this={menu}>
-    <IconButton icon="more" label="More actions" tipAbove aria-haspopup="menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)} />
-    {#if menuOpen}
+  <div class="more" bind:this={phoneMenu}>
+    <IconButton icon="more" label="More actions" tipAbove aria-haspopup="menu" aria-expanded={menuOpen === 'phone'} onclick={() => (menuOpen = menuOpen === 'phone' ? null : 'phone')} />
+    {#if menuOpen === 'phone'}
       <div class="menu" role="menu">
         <button type="button" role="menuitem" onclick={() => menuAction(toggleAll)} disabled={empty}>
           <Icon name={allSelected ? 'deselect' : 'selectAll'} />{allSelected ? 'Clear selection' : 'Select all'}
@@ -102,6 +138,7 @@
         <button type="button" role="menuitem" onclick={() => menuAction(() => app.redo())} disabled={!app.canRedo}><Icon name="redo" />Redo</button>
         <button type="button" role="menuitem" onclick={() => menuAction(() => move(-1))} disabled={count === 0}><Icon name="chevronLeft" />Move selected left</button>
         <button type="button" role="menuitem" onclick={() => menuAction(() => move(1))} disabled={count === 0}><Icon name="chevronRight" />Move selected right</button>
+        {@render pageTools()}
         <button type="button" role="menuitem" onclick={() => menuAction(onstartover)}><Icon name="startOver" />Start over</button>
       </div>
     {/if}
@@ -178,10 +215,17 @@
     bottom: calc(100% + 8px);
     left: 0;
     min-width: 220px;
+    max-height: calc(100dvh - 160px);
+    overflow-y: auto;
     padding: 8px 0;
     border-radius: var(--radius);
     background: var(--bg);
     box-shadow: var(--elev-3);
+  }
+  .menu.down {
+    bottom: auto;
+    top: calc(100% + 8px);
+    z-index: 20;
   }
   .menu button {
     display: flex;

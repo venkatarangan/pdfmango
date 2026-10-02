@@ -3,7 +3,8 @@ import type { CompressionPlan } from './compression';
 // Shared types for the main thread and the worker.
 
 export type Rotation = 0 | 90 | 180 | 270;
-export type SourceKind = 'pdf' | 'image';
+/** 'blank' is a page PDFMango made itself (Insert blank page); the engine treats it as a one-page PDF. */
+export type SourceKind = 'pdf' | 'image' | 'blank';
 
 export type Source = {
   id: string;
@@ -53,7 +54,16 @@ export type ExportOptions = {
   marginPt: number;
   /** Written to the output's Producer field; empty leaves it unset. */
   creditLine: string;
+  /** Written to the output's Title field; empty or missing leaves it unset. */
+  title?: string;
 };
+
+/** 'auto' picks per page: PNG for text and drawings, JPG for photos. */
+export type ImageFormat = 'auto' | 'png' | 'jpg';
+
+export type ImageExportOptions = { dpi: number; format: ImageFormat; jpegQuality: number; maxPixels: number };
+
+export type PageImage = { bytes: ArrayBuffer; ext: 'png' | 'jpg' };
 
 export type ExportProgress = { done: number; total: number; step: string };
 

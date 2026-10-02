@@ -1,7 +1,7 @@
 // Worker entry. Registers the Comlink API immediately; the engine (and its 10 MB WASM) loads on
 // first use, so no message can arrive before a listener exists.
 import * as Comlink from 'comlink';
-import type { ExportOptions, ExportPage, ExportProgress } from '../lib/types';
+import type { ExportOptions, ExportPage, ExportProgress, ImageExportOptions } from '../lib/types';
 
 const engine = import('./engine');
 
@@ -24,6 +24,7 @@ const api = {
   open: (bytes: ArrayBuffer, respectRestrictions: boolean) => call((e) => e.open(bytes, respectRestrictions)),
   unlock: (sourceId: string, password: string, respectRestrictions: boolean) => call((e) => e.unlock(sourceId, password, respectRestrictions)),
   addImage: (bytes: ArrayBuffer) => call((e) => e.addImage(bytes)),
+  addBlank: (widthPt: number, heightPt: number) => call((e) => e.addBlank(widthPt, heightPt)),
   renderThumb: (sourceId: string, srcIndex: number, widthPx: number) =>
     call(async (e) => {
       const bmp = await createImageBitmap(e.renderThumb(sourceId, srcIndex, widthPx));
@@ -32,6 +33,11 @@ const api = {
   export: (pages: ExportPage[], opts: ExportOptions, onProgress: (p: ExportProgress) => void) =>
     call(async (e) => {
       const r = await e.exportPdf(pages, opts, onProgress);
+      return Comlink.transfer(r, [r.bytes]);
+    }),
+  renderImage: (page: ExportPage, opts: ImageExportOptions) =>
+    call((e) => {
+      const r = e.renderImage(page, opts);
       return Comlink.transfer(r, [r.bytes]);
     }),
   cancel: () => call((e) => e.cancel()),

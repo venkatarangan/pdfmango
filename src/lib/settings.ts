@@ -2,7 +2,7 @@
 // Every value is picked from a fixed list (or, for the credit line, sanitised text), and anything
 // read back from storage is validated, so a bad or stale value can never break the tool.
 import { config } from '../pdfmango.config';
-import type { ImageMargin, ImagePageSize } from './types';
+import type { ImageFormat, ImageMargin, ImagePageSize } from './types';
 
 export type QualitySettings = { ppi: number; jpegQuality: number };
 export type Settings = {
@@ -14,6 +14,8 @@ export type Settings = {
   imageDefaultMargin: ImageMargin;
   marginSmallPt: number;
   marginMediumPt: number;
+  imageExportFormat: ImageFormat;
+  imageExportDpi: number;
   balanced: QualitySettings & { subsetFonts: boolean };
   strong: QualitySettings & { subsetFonts: boolean };
   scan: QualitySettings;
@@ -28,6 +30,8 @@ export const DEFAULTS: Settings = {
   imageDefaultMargin: config.imagePages.defaultMargin,
   marginSmallPt: config.imagePages.marginsPt.small,
   marginMediumPt: config.imagePages.marginsPt.medium,
+  imageExportFormat: config.imageExport.defaultFormat,
+  imageExportDpi: config.imageExport.defaultDpi,
   balanced: { ...config.compression.balanced },
   strong: { ...config.compression.strong },
   scan: { ...config.compression.scan },
@@ -41,6 +45,7 @@ export const CHOICES = {
   mobileMaxMB: withDefault([25, 50, 75, 100], DEFAULTS.mobileMaxMB),
   marginSmallPt: withDefault([9, 18, 27], DEFAULTS.marginSmallPt),
   marginMediumPt: withDefault([27, 36, 54, 72], DEFAULTS.marginMediumPt),
+  imageExportDpi: withDefault(Object.values(config.imageExport.dpiChoices), DEFAULTS.imageExportDpi),
   balancedPpi: withDefault([120, 150, 200], DEFAULTS.balanced.ppi),
   balancedQuality: withDefault([60, 75, 85], DEFAULTS.balanced.jpegQuality),
   strongPpi: withDefault([72, 96, 120], DEFAULTS.strong.ppi),
@@ -66,7 +71,7 @@ export function sanitizeOverrides(raw: unknown): Partial<Settings> {
   const out: Partial<Settings> = {};
   if ('creditLine' in raw && typeof raw.creditLine === 'string') out.creditLine = cleanCredit(raw.creditLine);
   if (typeof raw.respectOwnerRestrictions === 'boolean') out.respectOwnerRestrictions = raw.respectOwnerRestrictions;
-  const num = <K extends 'desktopMaxMB' | 'mobileMaxMB' | 'marginSmallPt' | 'marginMediumPt'>(k: K) => {
+  const num = <K extends 'desktopMaxMB' | 'mobileMaxMB' | 'marginSmallPt' | 'marginMediumPt' | 'imageExportDpi'>(k: K) => {
     const v = pick(raw[k], CHOICES[k] as readonly number[]);
     if (v !== undefined) out[k] = v as Settings[K];
   };
@@ -74,6 +79,9 @@ export function sanitizeOverrides(raw: unknown): Partial<Settings> {
   num('mobileMaxMB');
   num('marginSmallPt');
   num('marginMediumPt');
+  num('imageExportDpi');
+  const format = pick(raw.imageExportFormat, ['auto', 'png', 'jpg'] as const);
+  if (format) out.imageExportFormat = format;
   const size = pick(raw.imageDefaultSize, ['A4', 'original'] as const);
   if (size) out.imageDefaultSize = size;
   const margin = pick(raw.imageDefaultMargin, ['none', 'small', 'medium'] as const);

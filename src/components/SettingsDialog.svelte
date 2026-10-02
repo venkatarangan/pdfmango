@@ -2,6 +2,7 @@
   import { CHOICES, CREDIT_MAX, DEFAULTS, cleanCredit, type Settings } from '../lib/settings';
   import { settings } from '../lib/settings.svelte';
   import { notify } from '../lib/notify.svelte';
+  import { IMAGE_FORMATS, dpiLabel } from '../lib/page-images';
   import Dialog from './Dialog.svelte';
 
   type Props = { open: boolean; onclose: () => void };
@@ -92,6 +93,25 @@
           </select>
         </label>
       </div>
+    </section>
+
+    <section>
+      <h3>Pages as images</h3>
+      <div class="grid">
+        <label>
+          <span>Format</span>
+          <select value={s.imageExportFormat} onchange={(e) => settings.update({ imageExportFormat: (e.currentTarget as HTMLSelectElement).value as Settings['imageExportFormat'] })}>
+            {#each IMAGE_FORMATS as f (f.id)}<option value={f.id}>{f.label}{DEFAULTS.imageExportFormat === f.id ? ' (default)' : ''}</option>{/each}
+          </select>
+        </label>
+        <label>
+          <span>Resolution</span>
+          <select value={s.imageExportDpi} onchange={(e) => settings.update({ imageExportDpi: num(e) })}>
+            {#each CHOICES.imageExportDpi as v (v)}<option value={v}>{dpiLabel(v)}{v === DEFAULTS.imageExportDpi ? ' (default)' : ''}</option>{/each}
+          </select>
+        </label>
+      </div>
+      <p class="note">Auto saves text and drawings as PNG and photos as JPG.</p>
     </section>
 
     <section>

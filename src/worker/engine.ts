@@ -8,7 +8,9 @@ import type {
   ExportPage,
   ExportProgress,
   ExportResult,
+  ImageExportOptions,
   OpenResult,
+  PageImage,
   PageSize,
 } from '../lib/types';
 import { exifOrientation, isJpeg, stripJpegMetadata, type Orientation } from './jpeg';
@@ -125,6 +127,15 @@ export function addImage(bytes: ArrayBuffer): AddImageResult {
   }
 }
 
+/** A blank page of the given size (points), held as a one-page PDF so it exports like any other page. */
+export function addBlank(widthPt: number, heightPt: number): string {
+  const doc = new mupdf.PDFDocument();
+  doc.insertPage(-1, doc.addPage([0, 0, widthPt, heightPt], 0, {}, ''));
+  const sourceId = `s${nextId++}`;
+  sources.set(sourceId, { kind: 'pdf', doc, wasEncrypted: false });
+  return sourceId;
+}
+
 // ---- Thumbnails --------------------------------------------------------------------------------------
 
 export function renderThumb(sourceId: string, srcIndex: number, widthPx: number): ImageData {
@@ -134,6 +145,42 @@ export function renderThumb(sourceId: string, srcIndex: number, widthPx: number)
   try {
     return renderPage(page, widthPx);
   } finally {
+    page.destroy();
+  }
+}
+
+// ---- Pages as images -----------------------------------------------------------------------------
+
+/** Long side of A4 in points: photos are never made larger than an A4 page at the chosen resolution. */
+const A4_LONG_PT = 842;
+/** Above this many PNG bytes per pixel a page is photo-like (text pages measure under 0.2), and Auto saves it as JPG. */
+const PHOTO_BYTES_PER_PIXEL = 0.4;
+
+/**
+ * Renders one page, upright and with its added rotation, on white. PDF pages render at `dpi`;
+ * photo pages keep their own pixels, capped at an A4 page's size at `dpi`. Every image is capped
+ * at `maxPixels`. The output carries no metadata.
+ */
+export function renderImage(p: ExportPage, opts: ImageExportOptions): PageImage {
+  const src = sources.get(p.sourceId);
+  if (!src) throw new EngineError('export-failed');
+  const page = src.doc.loadPage(p.srcIndex);
+  let pix: mupdf.Pixmap | undefined;
+  try {
+    const [x0, y0, x1, y1] = page.getBounds();
+    const [w, h] = [Math.max(1, x1 - x0), Math.max(1, y1 - y0)];
+    // Image sources are drawn at 1 px = 1 pt, so scale 1 is the photo's own resolution.
+    let scale = src.kind === 'image' ? Math.min(1, (A4_LONG_PT * opts.dpi) / 72 / Math.max(w, h)) : opts.dpi / 72;
+    scale = Math.min(scale, Math.sqrt(opts.maxPixels / (w * h)));
+    const ctm = mupdf.Matrix.concat(mupdf.Matrix.scale(scale, scale), mupdf.Matrix.rotate(p.addedRotation));
+    pix = page.toPixmap(ctm, mupdf.ColorSpace.DeviceRGB, false, true);
+    const jpg = () => ({ bytes: pix!.asJPEG(opts.jpegQuality, false).slice().buffer as ArrayBuffer, ext: 'jpg' as const });
+    if (opts.format === 'jpg') return jpg();
+    const png = pix.asPNG().slice();
+    if (opts.format === 'auto' && png.length > pix.getWidth() * pix.getHeight() * PHOTO_BYTES_PER_PIXEL) return jpg();
+    return { bytes: png.buffer as ArrayBuffer, ext: 'png' };
+  } finally {
+    pix?.destroy();
     page.destroy();
   }
 }
@@ -175,6 +222,9 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
         const base = pageObj.getInheritable('Rotate');
         const original = base.isNumber() ? base.asNumber() : 0;
         pageObj.put('Rotate', ((((original + p.addedRotation) % 360) + 360) % 360));
+        // Page-level XMP and editor data can name the author or the software; the output keeps neither.
+        pageObj.delete('Metadata');
+        pageObj.delete('PieceInfo');
       } else {
         const ref = map.graftObject(src.imageRef);
         const layout = imagePageLayout(src.geometry, opts.imagePageSize, opts.marginPt);
@@ -187,7 +237,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
     // 5. Lossless always runs; it is also the safety net for the other levels.
     progress(0, 1, 'Saving', true);
     await yieldNow();
-    setCredit(out, opts.creditLine);
+    setInfo(out, opts);
     const lossless = saveCopy(out);
     const plan = opts.plan;
     if (plan.kind === 'lossless') return result(lossless, false);
@@ -209,7 +259,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
       candidate = saveCopy(out);
     } else {
       scanned = await scanDocument(out, plan, (d, t, s) => progress(d, t, s), yieldNow);
-      setCredit(scanned, opts.creditLine);
+      setInfo(scanned, opts);
       progress(0, 1, 'Saving', true);
       await yieldNow();
       candidate = saveCopy(scanned);
@@ -224,9 +274,13 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
   }
 }
 
-/** The visitor's credit line goes into the document properties (Producer); empty leaves it unset. */
-function setCredit(doc: mupdf.PDFDocument, credit: string) {
-  if (credit) doc.setMetaData('info:Producer', credit);
+/**
+ * The output starts with empty document properties (pages are copied into a new file, so the
+ * originals' author, title and XMP never come along). Only the credit line and title are set.
+ */
+function setInfo(doc: mupdf.PDFDocument, opts: ExportOptions) {
+  if (opts.creditLine) doc.setMetaData('info:Producer', opts.creditLine);
+  if (opts.title) doc.setMetaData('info:Title', opts.title);
 }
 
 function saveCopy(doc: mupdf.PDFDocument): Uint8Array {
