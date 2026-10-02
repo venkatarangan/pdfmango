@@ -9,7 +9,8 @@ import { app } from './state.svelte';
 import { pauseThumbs, resetThumbs } from './thumbs';
 import { finalFileName, defaultFileName } from './filenames';
 import { resultLine } from './format';
-import type { EngineErrorCode, ExportOptions, ExportProgress, OpenResult, PageRef } from './types';
+import { settings } from './settings.svelte';
+import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportProgress, OpenResult, PageRef } from './types';
 
 export const MESSAGES: Record<EngineErrorCode, string> = {
   'wrong-password': 'That password is not right.',
@@ -62,7 +63,7 @@ function askPassword(fileName: string, wrong: boolean): Promise<string | null> {
 /** Adds files in the order given, appending their pages to the end of the grid. */
 export async function addFiles(files: File[]) {
   if (files.length === 0) return;
-  const limit = sizeLimit(readDeviceEnv());
+  const limit = sizeLimit(readDeviceEnv(), settings.current);
   app.loading += files.length;
   let added = 0;
   try {
@@ -110,14 +111,15 @@ async function addOne(file: File, limit: ReturnType<typeof sizeLimit>): Promise<
     return 1;
   }
 
-  let r: OpenResult = await api.open(Comlink.transfer(bytes, [bytes]));
+  const respect = settings.current.respectOwnerRestrictions;
+  let r: OpenResult = await api.open(Comlink.transfer(bytes, [bytes]), respect);
   while (r.status === 'needs-password') {
     const pw = await askPassword(file.name, r.wrongPassword === true);
     if (pw === null) {
       await api.dispose(r.sourceId);
       return 0;
     }
-    r = await api.unlock(r.sourceId, pw);
+    r = await api.unlock(r.sourceId, pw, respect);
   }
   if (r.status === 'restricted') {
     notify.error(`${file.name}: the author of this PDF has restricted page changes, so PDFMango can't edit it.`);
@@ -133,7 +135,7 @@ async function addOne(file: File, limit: ReturnType<typeof sizeLimit>): Promise<
   appendPages(r.sourceId, r.pageCount);
   track({ name: 'file_added', params: { kind: 'pdf' } });
   if (r.notices.wasRepaired) notify.show(`${file.name} had errors and was repaired — check the result.`);
-  if (r.notices.restricted) notify.show(`${file.name}: its author restricted page changes; the site owner allows editing anyway.`);
+  if (r.notices.restricted) notify.show(`${file.name}: its author restricted page changes; your settings allow editing it anyway.`);
   return r.pageCount;
 }
 
@@ -149,7 +151,7 @@ export class ExportJob {
   running = $state(false);
   private cancelled = false;
 
-  async run(fileName: string, opts: ExportOptions): Promise<boolean> {
+  async run(fileName: string, level: CompressionLevel, opts: ExportOptions): Promise<boolean> {
     if (this.running || app.pages.length === 0) return false;
     this.running = true;
     this.cancelled = false;
@@ -170,7 +172,7 @@ export class ExportJob {
         }),
       );
       downloadBytes(result.bytes, name);
-      track({ name: 'export', params: { level: opts.level } });
+      track({ name: 'export', params: { level } });
       let line = resultLine(inputSize, result.outputSize);
       if (result.fellBackToLossless) line += '. This file was already well compressed.';
       notify.show(line);

@@ -1,7 +1,6 @@
 // The PDF engine: owns every opened file and builds the output PDF. Runs only inside the worker.
 import * as mupdf from 'mupdf';
-import { config } from '../pdfmango.config';
-import { LOSSLESS_OPTIONS, marginPt, planFor } from '../lib/compression';
+import { LOSSLESS_OPTIONS } from '../lib/compression';
 import type {
   AddImageResult,
   EngineErrorCode,
@@ -41,7 +40,8 @@ export function toCode(e: unknown): EngineErrorCode {
 
 // ---- Opening files -------------------------------------------------------------------------------
 
-export function open(bytes: ArrayBuffer): OpenResult {
+/** `respectRestrictions`: refuse PDFs whose author forbids page assembly (visitor setting). */
+export function open(bytes: ArrayBuffer, respectRestrictions = true): OpenResult {
   let doc: mupdf.Document;
   try {
     doc = mupdf.Document.openDocument(new Uint8Array(bytes), 'application/pdf');
@@ -57,21 +57,21 @@ export function open(bytes: ArrayBuffer): OpenResult {
   const wasEncrypted = pdf.needsPassword();
   sources.set(sourceId, { kind: 'pdf', doc: pdf, wasEncrypted });
   if (wasEncrypted) return { status: 'needs-password', sourceId };
-  return finishOpen(sourceId);
+  return finishOpen(sourceId, respectRestrictions);
 }
 
-export function unlock(sourceId: string, password: string): OpenResult {
+export function unlock(sourceId: string, password: string, respectRestrictions = true): OpenResult {
   const src = sources.get(sourceId);
   if (!src || src.kind !== 'pdf') throw new EngineError('unreadable');
   if (src.doc.authenticatePassword(password) === 0) return { status: 'needs-password', sourceId, wrongPassword: true };
-  return finishOpen(sourceId);
+  return finishOpen(sourceId, respectRestrictions);
 }
 
-function finishOpen(sourceId: string): OpenResult {
+function finishOpen(sourceId: string, respectRestrictions: boolean): OpenResult {
   const src = sources.get(sourceId) as PdfSource;
   try {
     const notices = readNotices(src.doc, src.wasEncrypted);
-    if (notices.restricted && config.respectOwnerRestrictions) {
+    if (notices.restricted && respectRestrictions) {
       dispose(sourceId);
       return { status: 'restricted', sourceId };
     }
@@ -177,7 +177,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
         pageObj.put('Rotate', ((((original + p.addedRotation) % 360) + 360) % 360));
       } else {
         const ref = map.graftObject(src.imageRef);
-        const layout = imagePageLayout(src.geometry, opts.imagePageSize, marginPt(opts.imageMargin));
+        const layout = imagePageLayout(src.geometry, opts.imagePageSize, opts.marginPt);
         const pageObj = out.addPage([0, 0, layout.pageW, layout.pageH], p.addedRotation, { XObject: { Im0: ref } }, imagePageContent(src.orient, layout));
         out.insertPage(-1, pageObj);
       }
@@ -187,8 +187,9 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
     // 5. Lossless always runs; it is also the safety net for the other levels.
     progress(0, 1, 'Saving', true);
     await yieldNow();
+    setCredit(out, opts.creditLine);
     const lossless = saveCopy(out);
-    const plan = planFor(opts.level);
+    const plan = opts.plan;
     if (plan.kind === 'lossless') return result(lossless, false);
 
     let candidate: Uint8Array;
@@ -208,6 +209,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
       candidate = saveCopy(out);
     } else {
       scanned = await scanDocument(out, plan, (d, t, s) => progress(d, t, s), yieldNow);
+      setCredit(scanned, opts.creditLine);
       progress(0, 1, 'Saving', true);
       await yieldNow();
       candidate = saveCopy(scanned);
@@ -220,6 +222,11 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
     out.destroy();
     cancelRequested = false;
   }
+}
+
+/** The visitor's credit line goes into the document properties (Producer); empty leaves it unset. */
+function setCredit(doc: mupdf.PDFDocument, credit: string) {
+  if (credit) doc.setMetaData('info:Producer', credit);
 }
 
 function saveCopy(doc: mupdf.PDFDocument): Uint8Array {

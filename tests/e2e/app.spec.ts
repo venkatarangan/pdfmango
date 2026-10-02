@@ -122,8 +122,9 @@ test('images: default A4 with no margin; Medium margin and original size from th
   out.doc.destroy();
   out = await openOutput(
     await download(page, async () => {
-      await page.getByText('Original image size').click();
-      await page.getByText('Medium', { exact: true }).click();
+      const dlg = page.getByRole('dialog', { name: 'Download PDF' });
+      await dlg.getByText('Original image size').click();
+      await dlg.getByText('Medium', { exact: true }).click();
     }),
   );
   expect(sizes(out)).toEqual([[1200 + 72, 1600 + 72], [1600 + 72, 1200 + 72]]);
@@ -134,7 +135,7 @@ test('Balanced compression shrinks the photo-heavy PDF by at least 40%', async (
   await page.goto('/');
   await addFiles(page, ['photo-heavy.pdf'], 12);
   const input = readFileSync(fx('photo-heavy.pdf')).length;
-  const out = await openOutput(await download(page, () => page.getByText('Balanced', { exact: true }).click()));
+  const out = await openOutput(await download(page, () => page.getByRole('dialog', { name: 'Download PDF' }).getByText('Balanced', { exact: true }).click()));
   expect(out.count).toBe(12);
   expect(out.size).toBeLessThan(input * 0.6);
   out.doc.destroy();
@@ -177,11 +178,9 @@ test('a damaged PDF opens with the repaired notice', async ({ page }) => {
 test('keyboard only: choose, select, move, rotate and download', async ({ page }) => {
   await page.goto('/');
   // The file picker itself is OS UI; the button that opens it must be reachable by keyboard.
-  await page.keyboard.press('Tab'); // brand link
-  await page.keyboard.press('Tab'); // About
-  await page.keyboard.press('Tab'); // Source code
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Choose files' })).toBeFocused();
+  const choose = page.getByRole('button', { name: 'Choose files' });
+  for (let i = 0; i < 8 && !(await choose.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab');
+  await expect(choose).toBeFocused();
   await addFiles(page, ['tamil-unicode.pdf'], 3);
 
   await page.getByRole('button', { name: /^Page 1:/ }).focus();
@@ -222,7 +221,7 @@ test('no request ever carries file data; only same-origin requests on localhost'
   const foreign = requests.filter((r) => !r.url.startsWith('http://localhost:4180/') && !r.url.startsWith('blob:') && !r.url.startsWith('data:'));
   expect(foreign).toEqual([]);
   expect(requests.filter((r) => r.method !== 'GET' || r.body > 0)).toEqual([]);
-  // The app itself writes nothing to storage.
+  // The app writes nothing to storage unless the visitor changes Settings.
   const stored = await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length, cookies: document.cookie }));
   expect(stored).toEqual({ local: 0, session: 0, cookies: '' });
 });
@@ -282,4 +281,30 @@ test('a ~250 MB PDF loads and exports on desktop Chrome', async ({ page }) => {
   const out = await openOutput(await download(page));
   expect(out.count).toBe(n);
   out.doc.destroy();
+});
+
+test('settings: easy choices, remembered in this browser, credit line in the PDF, reset to defaults', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Settings' });
+  await dlg.getByLabel('My own text').check();
+  await dlg.getByLabel('Your credit text').fill('Made by the test');
+  await dlg.getByLabel('Your credit text').blur();
+  await dlg.locator('label', { hasText: 'On computers' }).locator('select').selectOption('100');
+  await dlg.locator('.level', { hasText: 'Balanced' }).locator('select').first().selectOption('200');
+  await dlg.getByRole('button', { name: 'Done' }).click();
+
+  await page.reload();
+  await addFiles(page, ['tamil-unicode.pdf'], 3);
+  const out = await openOutput(
+    await download(page, () => expect(page.getByRole('dialog', { name: 'Download PDF' }).getByText('Shrinks large photos to 200 ppi.')).toBeVisible()),
+  );
+  expect(out.doc.getMetaData('info:Producer')).toBe('Made by the test');
+  out.doc.destroy();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('pdfmango.settings.v1') ?? '{}'));
+  expect(stored).toEqual({ creditLine: 'Made by the test', desktopMaxMB: 100, balanced: { ppi: 200, jpegQuality: 75, subsetFonts: true } });
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Reset all to defaults' }).click();
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
 });

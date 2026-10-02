@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { config } from '../pdfmango.config';
   import { ExportJob } from '../lib/actions.svelte';
-  import { LEVELS, MARGINS } from '../lib/compression';
+  import { levels, MARGINS, planFor } from '../lib/compression';
+  import { marginPtFor } from '../lib/settings';
+  import { settings } from '../lib/settings.svelte';
   import { defaultFileName } from '../lib/filenames';
   import { app } from '../lib/state.svelte';
   import type { CompressionLevel, ImageMargin, ImagePageSize } from '../lib/types';
@@ -14,12 +15,19 @@
   const job = new ExportJob();
   let fileName = $state('');
   let level = $state<CompressionLevel>('lossless');
-  let imagePageSize = $state<ImagePageSize>(config.imagePages.defaultSize);
-  let imageMargin = $state<ImageMargin>(config.imagePages.defaultMargin);
+  let imagePageSize = $state<ImagePageSize>(settings.current.imageDefaultSize);
+  let imageMargin = $state<ImageMargin>(settings.current.imageDefaultMargin);
+  const levelList = $derived(levels(settings.current));
 
-  // Fresh default name each time the dialog opens; the other choices are kept for the session.
+  // Each time the dialog opens: a fresh default name, and image options from the visitor's settings.
+  let wasOpen = false;
   $effect(() => {
-    if (open) fileName = defaultFileName(app.usedSources());
+    if (open && !wasOpen) {
+      fileName = defaultFileName(app.usedSources());
+      imagePageSize = settings.current.imageDefaultSize;
+      imageMargin = settings.current.imageDefaultMargin;
+    }
+    wasOpen = open;
   });
 
   const notices = $derived.by(() => {
@@ -36,7 +44,13 @@
 
   async function download(e: SubmitEvent) {
     e.preventDefault();
-    const ok = await job.run(fileName, { level, imagePageSize, imageMargin });
+    const s = settings.current;
+    const ok = await job.run(fileName, level, {
+      plan: planFor(level, s),
+      imagePageSize,
+      marginPt: marginPtFor(s, imageMargin),
+      creditLine: s.creditLine,
+    });
     if (ok) onclose();
   }
 
@@ -52,7 +66,7 @@
 
     <fieldset disabled={job.running}>
       <legend>Compression</legend>
-      {#each LEVELS as l (l.id)}
+      {#each levelList as l (l.id)}
         <label class="choice" class:checked={level === l.id}>
           <input type="radio" name="level" value={l.id} bind:group={level} />
           <span class="text">

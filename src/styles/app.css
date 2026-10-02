@@ -45,6 +45,17 @@
 .dropcard .btn {
   min-width: 160px;
 }
+.lede {
+  max-width: 600px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: center;
+}
+.lede a {
+  font-weight: 600;
+  white-space: nowrap;
+}
 .intro {
   display: flex;
   flex-direction: column;
@@ -68,8 +79,5 @@
 @media (max-width: 720px) {
   body:has(.bottombar) {
     padding-bottom: calc(64px + env(safe-area-inset-bottom));
-  }
-  .appbar nav a {
-    padding: 0 10px;
   }
 }

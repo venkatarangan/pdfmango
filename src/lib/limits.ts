@@ -1,4 +1,5 @@
 import { config } from '../pdfmango.config';
+import type { Settings } from './settings';
 
 const MB = 1024 * 1024;
 
@@ -26,10 +27,10 @@ export function isMobile(env: DeviceEnv): boolean {
 export type SizeLimit = { maxBytes: number; maxMB: number; mobile: boolean };
 
 /** Phones get the small limit; so does any device reporting 4 GB of memory or less. */
-export function sizeLimit(env: DeviceEnv): SizeLimit {
+export function sizeLimit(env: DeviceEnv, limits: Pick<Settings, 'mobileMaxMB' | 'desktopMaxMB'>): SizeLimit {
   const mobile = isMobile(env);
   const lowMemory = env.deviceMemoryGB !== undefined && env.deviceMemoryGB <= 4;
-  const maxMB = mobile || lowMemory ? config.limits.mobileMaxMB : config.limits.desktopMaxMB;
+  const maxMB = mobile || lowMemory ? limits.mobileMaxMB : limits.desktopMaxMB;
   return { maxBytes: maxMB * MB, maxMB, mobile };
 }
 

@@ -1,9 +1,11 @@
 // Every tunable value in one place. Change it here, rebuild, redeploy.
+// Visitors can override some of these in the Settings dialog (see src/lib/settings.ts); these stay the defaults.
 export const config = {
   appName: 'PDFMango',
   siteUrl: 'https://pdf.mangoidiots.com',
   repoUrl: 'https://github.com/venkatarangan/pdfmango',
-  creditLine: 'Generated with Claude Opus 5.5',
+  // Written into each downloaded PDF's document properties (Producer); visitors can change it in Settings.
+  creditLine: 'Exported with pdf.mangoidiots.com',
   // Analytics stays off while measurementId is the placeholder.
   analytics: { measurementId: 'G-XXXXXXXXXX', liveHostname: 'pdf.mangoidiots.com' },
   limits: { mobileMaxMB: 50, desktopMaxMB: 250, maxPages: 1000 },

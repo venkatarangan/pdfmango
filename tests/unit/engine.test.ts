@@ -3,13 +3,22 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as mupdf from 'mupdf';
 import * as engine from '../../src/worker/engine';
-import type { ExportOptions, ExportPage, OpenResult } from '../../src/lib/types';
+import type { CompressionLevel, ExportOptions, ExportPage, OpenResult } from '../../src/lib/types';
+import { planFor } from '../../src/lib/compression';
+import { DEFAULTS, marginPtFor } from '../../src/lib/settings';
 
 const fixture = (f: string) => {
   const b = readFileSync(new URL(`../fixtures/${f}`, import.meta.url));
   return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 };
-const opts = (o: Partial<ExportOptions> = {}): ExportOptions => ({ level: 'lossless', imagePageSize: 'A4', imageMargin: 'none', ...o });
+type TestOpts = Partial<ExportOptions> & { level?: CompressionLevel; imageMargin?: 'none' | 'small' | 'medium' };
+const opts = ({ level = 'lossless', imageMargin = 'none', ...o }: TestOpts = {}): ExportOptions => ({
+  plan: planFor(level, DEFAULTS),
+  imagePageSize: 'A4',
+  marginPt: marginPtFor(DEFAULTS, imageMargin),
+  creditLine: '',
+  ...o,
+});
 const ok = (r: OpenResult) => {
   if (r.status !== 'ok') throw new Error(`expected ok, got ${r.status}`);
   return r;
@@ -42,8 +51,9 @@ describe('open', () => {
     expect(u.pageCount).toBe(3);
     expect(u.notices.wasEncrypted).toBe(true);
   });
-  it('refuses an owner-restricted PDF by default', () => {
+  it('refuses an owner-restricted PDF by default, opens it when the visitor allows', () => {
     expect(engine.open(fixture('owner-restricted.pdf')).status).toBe('restricted');
+    expect(ok(engine.open(fixture('owner-restricted.pdf'), false)).notices.restricted).toBe(true);
   });
   it('repairs a damaged PDF and says so', () => {
     const r = ok(engine.open(fixture('damaged.pdf')));
@@ -91,7 +101,7 @@ describe('export', () => {
     const portrait = engine.addImage(fixture('phone-portrait-exif6.jpg'));
     const land = engine.addImage(fixture('phone-landscape-exif1.jpg'));
     const pages = [portrait, land].map((s) => ({ sourceId: s.sourceId, srcIndex: 0, addedRotation: 0 as const }));
-    const sizes = async (o: Partial<ExportOptions>) => {
+    const sizes = async (o: TestOpts) => {
       const out = reopen((await engine.exportPdf(pages, opts(o), noProgress)).bytes);
       const s = [0, 1].map((i) => {
         const p = out.loadPage(i);
@@ -161,6 +171,17 @@ describe('export', () => {
     expect(text(out, 0)).toContain('யாதும் ஊரே யாவரும் கேளிர்');
     out.destroy();
     src.destroy();
+  });
+
+  it('writes the credit line to the document properties, or nothing when empty', async () => {
+    const t = ok(engine.open(fixture('tamil-unicode.pdf')));
+    const pages = [{ sourceId: t.sourceId, srcIndex: 0, addedRotation: 0 as const }];
+    const withCredit = reopen((await engine.exportPdf(pages, opts({ creditLine: 'Exported with pdf.mangoidiots.com' }), noProgress)).bytes);
+    expect(withCredit.getMetaData('info:Producer')).toBe('Exported with pdf.mangoidiots.com');
+    withCredit.destroy();
+    const scan = reopen((await engine.exportPdf(pages, opts({ level: 'strong', creditLine: 'Mine' }), noProgress)).bytes);
+    expect(scan.getMetaData('info:Producer')).toBe('Mine');
+    scan.destroy();
   });
 
   it('cancel stops a running export', async () => {

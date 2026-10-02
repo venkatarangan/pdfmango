@@ -1,35 +1,43 @@
-# Prompt history
+# How PDFMango was built
 
-The prompts used to build PDFMango with Claude Code (Claude Opus 5.5), in order, with private context removed. The build spec itself is `SPECIFICATION.md`; the first prompt is also in `initial-prompt.txt`.
+## Background
 
-## 1 Oct 2026
+Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what the tool should do, how it should look, and how it should protect privacy. That conversation produced a detailed plan, [spec.md](spec.md). The plan was then handed to **Claude Code** (Claude Opus 5.5), which built PDFMango from it.
 
-### 1. Start
+## Prompts to Claude Code
 
-> read @spec.md and begin your work.
+**1 Oct 2026**
 
-Claude ran the milestone 1 spike first (see `SPIKE.md`). Every gate item passed, but a few MuPDF.js 1.28.1 calls differ from the spec, so Claude stopped and asked three questions.
+1. > read @spec.md and begin your work.
 
-### 2. Answers after the spike
+   Claude ran the engine spike first ([SPIKE.md](SPIKE.md)). Everything passed, but a few engine calls differed from the plan, so it stopped to ask three questions:
+   - Strip hidden metadata (GPS, serials) from photos? → **Yes**
+   - Where should font subsetting run? → **Balanced and Strong only**
+   - Create the GitHub repo now? → **No, build locally first**
 
-| Question | Answer |
-| --- | --- |
-| Phone photos carry EXIF metadata (GPS location, device serials). When a JPG becomes a PDF page, should PDFMango strip that metadata? The image pixels are never re-encoded either way. | **Strip metadata (Recommended)** |
-| Font subsetting caused no visual change in any test, but one CJK font failed to subset (left intact, no damage), and subsetting can break typing into form fields. Where should it run? | **Balanced + Strong only (Recommended)** |
-| Milestone 2 creates a public GitHub repo 'pdfmango' under your account, pushes to it, and sets up Pages CI. Go ahead? | **Build locally only** (scaffold and commit locally; push later) |
+   Claude then built and tested the app locally.
 
-Claude then built milestones 2–6 locally and committed them.
+**2 Oct 2026**
 
-## 2 Oct 2026
+2. > launch the app for me to check
+3. > ensure no pii or private information gets public. then publish it to github, I have made the DNS changes.
 
-### 3. Local check
+   Claude checked every file, the git history and the file metadata, and replaced the personal email in the commits with GitHub's no-reply address. It then published the repo and the site.
+4. > in the main page of the app, i wish to show two lines on what is PDFMango, give a link to the about page, also write one line on why I wrote it. show me the lines for approval
+5. > let us go with What is PDFMango and #B
+6. > in the text, give my full name, venkatarangan thirumalai and hyperlink venkatarangan thirumalai to https://thefoundercatalyst.com/venkatarangan, move the about pdfmango hyperlink next to the intro text and not after my quote. in the about page, include social-preview.png it will make it look better. remove the source code hyperlink in the footer. remove 'generated with claude opus 5.5" in the footer and instead move that information to the About Page, below Open Source, create a new section and add the AI details.
+7. > 1) in the configuration, make the default value: creditLine from "Generated with Claude Opus 5.5" to "Exported with pdf.mangoidiots.com". 2) Add a settings option in the page to override only these configuration defaults by the user, remember the changes in local browser: creditline, respectOwnerRestrictions, limits.desktopMaxMB, limits.mobileMaxMB, imagePages.defaultMargin, imagePages.defaultSize, imagePages.marginsPt, compression.balanced, compression.strong, compression.scan - make these easy selectable values for enduser, don't make them type raw values and break the tool; give an option to reset all overrides to default set in the config.ts.
+8. > in the main app page move the intro line "PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size" to the top, above drop pdfs files. rest of the text can be below "Drop PDFs"
+9. > in prompt-history.md, you mention "read @spec.md and begin your work", but you never shipped spec.md; as you remember I ideated with claude cowork to come up with a detailed plan, which was written as spec.md as the starting point for claude code to work, this background has to be told in brief, and the original spec.md shared in the repo & linked in prompt-history, ensure there are no PII or private information in that. simplify the different files like spec.md, specification.md and initial-prompt.txt files and consolidate. 2) overall, make all the repo files - markdown and docs simple, easy to read, and not too verbose and cluttered.
 
-> launch the app for me to check
+## What changed from the plan
 
-Claude served the production build locally (`vite preview`) for review.
-
-### 4. Publish
-
-> ensure no pii or private information gets public. then publish it to github, I have made the DNS changes.
-
-Before publishing, Claude scanned every tracked file and every blob in git history for personal or machine-specific details (user names, home and Windows paths, IP addresses, email addresses, secrets) and checked the metadata inside the fixture PDFs, JPEGs and PNGs. The only finding was the personal email address in the commit metadata; the unpushed commits were rewritten to use the GitHub no-reply address. Claude then created the public repository and enabled GitHub Pages.
+| Topic | Plan said | What was built |
+| --- | --- | --- |
+| Photos | Embed JPEGs as-is | Still not re-encoded, but hidden metadata (GPS, serials) is removed first |
+| Font subsetting | Optional | Only for Balanced and Strong |
+| Engine calls | `image.toPixmap(w, h)` for shrinking images | Not in MuPDF.js 1.28.1; images are redrawn at the smaller size instead |
+| Settings | Nothing stored; restrictions setting not shown to visitors | A Settings dialog; only the visitor's choices are saved in their browser, never anything about files |
+| Credit line | "Generated with Claude Opus 5.5" in the footer | "Exported with pdf.mangoidiots.com" in each PDF's document properties; the AI credit is on the About page |
+| Footer | Included a Source code link | Source code link is in the app bar only |
+| Repo files | `SPECIFICATION.md` and `initial-prompt.txt` | Merged into `spec.md` (the original plan) and this file |

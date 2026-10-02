@@ -1,13 +1,8 @@
+> **About this file.** The original plan for PDFMango, written by Venkatarangan Thirumalai with Claude Cowork and handed to Claude Code as its starting point. It is kept as written; what changed during the build is in [prompt-history.md](prompt-history.md).
+
 # PDFMango — build spec
 
 Oct 1, 2026 · @Venkatarangan Thirumalai
-
-> **Kept current.** Changes since the first version (1 Oct 2026), from the spike (`SPIKE.md`) and Venkat's decisions:
-> - JPEG photos have their metadata segments (EXIF/XMP/IPTC/comments: GPS, serials) stripped before embedding; pixels are still never re-encoded.
-> - `subsetFonts()` runs for Balanced and Strong only (config switch); never for Lossless.
-> - MuPDF.js 1.28.1 has no sized `Image.toPixmap(w, h)`: downsampling draws the image into a target-size pixmap with a `DrawDevice`.
-> - The Device `fillImage` callback is matched to object numbers by image pointer (`loadImage(ref).pointer`).
-> - Worker API: `open()` returns a status (`ok` / `needs-password` / `restricted`); passwords go through `unlock(sourceId, password)` so bytes are transferred once.
 
 ## Overview
 
@@ -78,8 +73,7 @@ Every edit is instant because it only changes a list of pages in memory; the rea
   - **A4 (default):** 595.28 × 841.89 pt. Orientation follows the image (a landscape photo gets landscape A4). The image is fitted inside the page keeping its aspect ratio, centred within the margin. Margin is configurable for both page sizes: None (default), Small (18 pt, about 6 mm) or Medium (36 pt, about 13 mm).
   - **Original image size:** page size taken from the image's own resolution; if it has none, treat it as 96 ppi (1 px = 0.75 pt).
 - Phone photos must appear upright: honour the EXIF orientation tag.
-- JPEGs are embedded without re-encoding (fast, no quality loss), after removing metadata segments (EXIF/XMP/IPTC/comments, which carry GPS location and device serials); colour profiles and the Adobe marker are kept. PNGs keep transparency.
-- "Original image size" reads the resolution from the original file (EXIF/JFIF/pHYs) before stripping. Phones write 72 dpi, so a phone photo at original size makes a large page.
+- JPEGs are embedded as-is without re-encoding (fast, no quality loss); PNGs keep transparency.
 
 ### 5. Compress
 
@@ -110,16 +104,16 @@ The dialog shows one plain line under each level, and Scan shows a warning: "Tex
 
 Save with the MuPDF write options `garbage=deduplicate,compress,compress-fonts,compress-images,objstms`. Lossless always runs, because removed pages leave orphaned objects behind until garbage collection.
 
-Font subsetting (`subsetFonts()`): the spike showed no rendering changes on the Tamil and CJK files, but one CJK font in a `.ttc` could not be subset (left whole), and subsetting breaks typing into form fields. Decision: subset for Balanced and Strong only (config `compression.*.subsetFonts`), never for Lossless.
+Font subsetting (`subsetFonts()`) is optional: enable it only if the spike shows no rendering changes on the Tamil and CJK test files.
 
 ### Image downsampling (Balanced, Strong)
 
 MuPDF's write options compress images but do not downsample them, so the app does it with the JS API:
 
 1. For each output page, walk `Resources → XObject`, recursing into Form XObjects. Collect image XObjects by object number, so an image shared by many pages is processed once.
-2. Find each image's displayed size. Preferred: run the page through a custom `Device` whose `fillImage` callback receives the image and its transform matrix, which gives the exact size on the page. Match it to the object by pointer: `doc.loadImage(ref).pointer === image.pointer` (MuPDF caches images per object). Fallback: assume the image spans the full page width (this under-compresses small images but never damages them).
+2. Find each image's displayed size. Preferred: run the page through a custom `Device` whose `fillImage` callback receives the image and its transform matrix, which gives the exact size on the page. Fallback: assume the image spans the full page width (this under-compresses small images but never damages them).
 3. Effective ppi = pixel width ÷ displayed width in inches. Skip the image when it is already within 1.2× the target, is 1-bit or an image mask, or has a soft mask (transparency).
-4. Resample: create a `Pixmap` of the new size in DeviceRGB or DeviceGray (matching the source), draw the image into it with a `DrawDevice` (`fillImage(image, [w,0,0,h,0,0], 1)`), then `pixmap.asJPEG(quality, false)`. (MuPDF.js 1.28.1 has no sized `Image.toPixmap()`.)
+4. `image.toPixmap(newWidth, newHeight)`, convert to DeviceRGB or DeviceGray to match the source, then `pixmap.asJPEG(quality, false)`.
 5. Keep the new JPEG only if it is smaller than the original stream. If so, `doc.addImage(new mupdf.Image(jpegBytes))` and point every XObject entry that used the old image at the new one, keeping the same resource name.
 6. Save with the Lossless options.
 
@@ -164,11 +158,10 @@ Reorder, rotate and delete change only `pages`, with no worker call. The file by
 
 ### Worker API (via Comlink)
 
-- `open(bytes)` → `{ status: 'ok', sourceId, pageCount, pageSizes, notices }` or `{ status: 'needs-password' | 'restricted', sourceId }` (`notices`: wasRepaired, hasOutline, hasForm, isSigned, wasEncrypted, restricted)
-- `unlock(sourceId, password)` → same shape; `wrongPassword: true` on a bad password
-- `addImage(bytes)` → `{ sourceId, widthPx, heightPx, pageSize }` (displayed size, after EXIF orientation)
+- `open(bytes, name, password?)` → `{ sourceId, pageCount, pageSizes, needsPassword, canAssemble, wasRepaired }`
+- `addImage(bytes, name, mime)` → `{ sourceId, widthPx, heightPx }`
 - `renderThumb(sourceId, srcIndex, widthPx)` → `ImageBitmap` (transferred)
-- `export(pages, { level, imagePageSize, imageMargin }, onProgress)` → `{ bytes, outputSize, fellBackToLossless }` (bytes transferred; the main thread knows the input size)
+- `export(pages, { level, imagePageSize }, onProgress)` → `{ bytes, inputSize, outputSize }` (bytes transferred)
 - `cancel()`, `dispose(sourceId)`, `reset()`
 
 ### Export pipeline
@@ -185,7 +178,7 @@ One pipeline covers single-file edits and merges alike. Building a fresh documen
 ### Thumbnails and memory
 
 - A render queue fed by an IntersectionObserver: visible pages first, off-screen requests cancelled. Thumbnails pause while an export runs.
-- Render into a 4-channel `Pixmap` cleared to opaque white with a `DrawDevice` (straight RGBA, no per-pixel conversion); convert to an `ImageBitmap` in the worker and transfer it. The main thread keeps at most ~240 bitmaps (never evicting visible ones).
+- Render with `page.toPixmap(scale, DeviceRGB, false, true)`; convert to an `ImageBitmap` in the worker and transfer it.
 - Call `.destroy()` on every MuPDF object (pages, pixmaps, images, documents) when done. This matters for 250 MB files.
 - Load the WASM engine in the background right after first paint, so it is usually ready before the first file is dropped.
 
@@ -201,7 +194,7 @@ One pipeline covers single-file edits and merges alike. Building a fresh documen
 | Rotation | `findPage(i)` → read and `put('Rotate', n)` |
 | Image page | `new mupdf.Image(bytes)`, `addImage(image)`, `addPage(mediabox, 0, resources, contents)`, `insertPage(-1, page)` |
 | Thumbnail / Scan render | `page.toPixmap(matrix, colorspace, alpha, showExtras)` |
-| Recompress an image | `loadImage(ref)`, `new Pixmap(cs, [0,0,w,h], false)` + `DrawDevice.fillImage(...)`, `pixmap.asJPEG(quality, false)` |
+| Recompress an image | `loadImage(ref)`, `image.toPixmap(w, h)`, `pixmap.asJPEG(quality, false)` |
 | Save | `saveToBuffer('garbage=deduplicate,compress,compress-fonts,compress-images,objstms')` |
 | Repaired-file check | `wasRepaired()` |
 
@@ -215,15 +208,15 @@ All tunable values live in one file, `src/pdfmango.config.ts`, so behaviour can 
 export const config = {
   appName: 'PDFMango',
   siteUrl: 'https://pdf.mangoidiots.com',
-  repoUrl: 'https://github.com/venkatarangan/pdfmango',
+  repoUrl: 'https://github.com/<account>/pdfmango',
   creditLine: 'Generated with Claude Opus 5.5',
   analytics: { measurementId: 'G-XXXXXXXXXX', liveHostname: 'pdf.mangoidiots.com' },
   limits: { mobileMaxMB: 50, desktopMaxMB: 250, maxPages: 1000 },
   respectOwnerRestrictions: true, // false = load restricted PDFs, with a notice
   imagePages: { defaultSize: 'A4', defaultMargin: 'none', marginsPt: { none: 0, small: 18, medium: 36 } },
   compression: {
-    balanced: { ppi: 150, jpegQuality: 75, subsetFonts: true },
-    strong:   { ppi: 96,  jpegQuality: 55, subsetFonts: true },
+    balanced: { ppi: 150, jpegQuality: 75 },
+    strong:   { ppi: 96,  jpegQuality: 55 },
     scan:     { ppi: 110, jpegQuality: 60 },
   },
 } as const;
@@ -244,7 +237,7 @@ One screen, white, Material 3-inspired, with mango as the only accent colour. Li
 - **Page cards:** 12 px corners, a light outline, slight elevation on hover. Selected = 2 px mango outline + a check badge in the corner.
 - **Download dialog:** a centred dialog on desktop, a bottom sheet on phones.
 - **Feedback:** a linear progress bar inside the dialog; a snackbar for results and errors.
-- **Footer:** "PDFMango v1.0.0 · Free and open source (AGPL-3.0) · Your files never leave your device · A mangoidiots.com project". (2 Oct 2026: the AI credit moved to a "Built with AI" section on the About page; the Source code link is in the app bar only.)
+- **Footer:** "PDFMango v1.0.0 · Free and open source (AGPL-3.0) · Your files never leave your device · Generated with Claude Opus 5.5 · A mangoidiots.com project".
 
 ### Logo and brand
 
@@ -330,7 +323,7 @@ object-src 'none'; base-uri 'self'
 ### Licence
 
 - Repo licence: AGPL-3.0-or-later. This is required because MuPDF.js is AGPL.
-- A visible "Source code" link in the header (app bar) pointing at the public GitHub repo. This meets AGPL's duty to offer the source to people using the app over a network.
+- A visible "Source code" link in the header and footer pointing at the public GitHub repo. This meets AGPL's duty to offer the source to people using the app over a network.
 - A `THIRD_PARTY_NOTICES.md` listing MuPDF.js (Artifex) and every other dependency with its licence.
 - The mangoidiots name and logo are Venkat's own branding.
 
@@ -488,9 +481,6 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 | Analytics | Google Analytics 4 with Venkat's tag; no consent banner; Mudalali-style behaviour and disclosure |
 | UI language | English only; PDFs in any script, including Tamil, are supported |
 | Build model | Claude Code with Claude Opus 5.5 |
-| Photo metadata | Strip EXIF/XMP/IPTC/comments from JPEGs before embedding (1 Oct 2026) |
-| Font subsetting | Balanced and Strong only; never Lossless (1 Oct 2026) |
-| Publishing | Build and commit locally; create and push the GitHub repo only when Venkat says so (1 Oct 2026) |
 
 ## Sources
 

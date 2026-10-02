@@ -3,7 +3,8 @@ import { baseName, defaultFileName, finalFileName } from '../../src/lib/filename
 import { checkPages, checkSize, isMobile, sizeLimit } from '../../src/lib/limits';
 import { sniff } from '../../src/lib/filetypes';
 import { formatBytes, resultLine } from '../../src/lib/format';
-import { planFor, marginPt } from '../../src/lib/compression';
+import { planFor } from '../../src/lib/compression';
+import { DEFAULTS, marginPtFor } from '../../src/lib/settings';
 
 describe('file names', () => {
   it('one PDF -> <original>-edited.pdf', () => {
@@ -36,13 +37,13 @@ describe('device limits', () => {
     expect(isMobile({ userAgentDataMobile: false, coarseNoHover: false })).toBe(false);
   });
   it('50 MB on phones and low-memory devices, 250 MB on computers', () => {
-    expect(sizeLimit({ coarseNoHover: true }).maxMB).toBe(50);
-    expect(sizeLimit({ deviceMemoryGB: 4 }).maxMB).toBe(50);
-    expect(sizeLimit({ deviceMemoryGB: 8 }).maxMB).toBe(250);
-    expect(sizeLimit({}).maxMB).toBe(250);
+    expect(sizeLimit({ coarseNoHover: true }, DEFAULTS).maxMB).toBe(50);
+    expect(sizeLimit({ deviceMemoryGB: 4 }, DEFAULTS).maxMB).toBe(50);
+    expect(sizeLimit({ deviceMemoryGB: 8 }, DEFAULTS).maxMB).toBe(250);
+    expect(sizeLimit({}, DEFAULTS).maxMB).toBe(250);
   });
   it('refuses a file that takes the session past the limit, naming it', () => {
-    const phone = sizeLimit({ coarseNoHover: true });
+    const phone = sizeLimit({ coarseNoHover: true }, DEFAULTS);
     expect(checkSize(phone, 40 * 1048576, 10 * 1048576)).toBeNull();
     expect(checkSize(phone, 40 * 1048576, 11 * 1048576)).toMatch(/50 MB.*computer/);
   });
@@ -89,12 +90,12 @@ describe('format', () => {
 
 describe('compression options', () => {
   it('maps levels to engine plans from the config', () => {
-    expect(planFor('lossless')).toEqual({ kind: 'lossless' });
-    expect(planFor('balanced')).toEqual({ kind: 'downsample', ppi: 150, quality: 75, subsetFonts: true });
-    expect(planFor('strong')).toEqual({ kind: 'downsample', ppi: 96, quality: 55, subsetFonts: true });
-    expect(planFor('scan')).toEqual({ kind: 'scan', ppi: 110, quality: 60 });
+    expect(planFor('lossless', DEFAULTS)).toEqual({ kind: 'lossless' });
+    expect(planFor('balanced', DEFAULTS)).toEqual({ kind: 'downsample', ppi: 150, quality: 75, subsetFonts: true });
+    expect(planFor('strong', DEFAULTS)).toEqual({ kind: 'downsample', ppi: 96, quality: 55, subsetFonts: true });
+    expect(planFor('scan', DEFAULTS)).toEqual({ kind: 'scan', ppi: 110, quality: 60 });
   });
   it('maps margins to points', () => {
-    expect([marginPt('none'), marginPt('small'), marginPt('medium')]).toEqual([0, 18, 36]);
+    expect([marginPtFor(DEFAULTS, 'none'), marginPtFor(DEFAULTS, 'small'), marginPtFor(DEFAULTS, 'medium')]).toEqual([0, 18, 36]);
   });
 });

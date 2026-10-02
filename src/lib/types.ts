@@ -1,3 +1,5 @@
+import type { CompressionPlan } from './compression';
+
 // Shared types for the main thread and the worker.
 
 export type Rotation = 0 | 90 | 180 | 270;
@@ -45,9 +47,12 @@ export type AddImageResult = { sourceId: string; widthPx: number; heightPx: numb
 export type ExportPage = { sourceId: string; srcIndex: number; addedRotation: Rotation };
 
 export type ExportOptions = {
-  level: CompressionLevel;
+  plan: CompressionPlan;
   imagePageSize: ImagePageSize;
-  imageMargin: ImageMargin;
+  /** Margin around image pages, in points. */
+  marginPt: number;
+  /** Written to the output's Producer field; empty leaves it unset. */
+  creditLine: string;
 };
 
 export type ExportProgress = { done: number; total: number; step: string };

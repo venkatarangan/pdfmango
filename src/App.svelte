@@ -5,6 +5,7 @@
   import { app } from './lib/state.svelte';
   import { notify } from './lib/notify.svelte';
   import ConfirmDialog from './components/ConfirmDialog.svelte';
+  import SettingsDialog from './components/SettingsDialog.svelte';
   import DownloadDialog from './components/DownloadDialog.svelte';
   import Icon from './components/Icon.svelte';
   import PageGrid from './components/PageGrid.svelte';
@@ -16,6 +17,15 @@
   let fileInput: HTMLInputElement | undefined = $state();
   let downloadOpen = $state(false);
   let previewUid = $state<string | null>(null);
+  let settingsOpen = $state(false);
+
+  // The gear button lives in the static app bar (index.html), outside this component.
+  $effect(() => {
+    const btn = document.getElementById('settings-btn');
+    const open = () => (settingsOpen = true);
+    btn?.addEventListener('click', open);
+    return () => btn?.removeEventListener('click', open);
+  });
   let confirm = $state<null | { title: string; message: string; confirmLabel: string; run: () => void }>(null);
 
   const working = $derived(app.sources.size > 0 || app.loading > 0);
@@ -104,6 +114,7 @@
 
 {#if !working}
   <div class="empty-shell">
+    <p class="lede">PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size. <a href="/about/">About PDFMango →</a></p>
     <!-- The whole card opens the picker; the button is the keyboard and screen-reader route. -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="dropcard" onclick={(e) => e.target === e.currentTarget && chooseFiles()}>
@@ -112,8 +123,7 @@
       <button type="button" class="btn btn-filled" onclick={chooseFiles}>Choose files</button>
     </div>
     <div class="intro">
-      <p>PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size.</p>
-      <p>Your files never leave your device: no upload, no sign-up, no ads, on Windows, Mac, Linux, Android and iPhone. <a href="/about/">About PDFMango →</a></p>
+      <p>Your files never leave your device: no upload, no sign-up, no ads, on Windows, Mac, Linux, Android and iPhone.</p>
       <p class="why">“Every PDF tool I tried was full of ads, cluttered, or wanted my documents on its server, so I had one built that is none of those.” — <a href="https://thefoundercatalyst.com/venkatarangan" rel="noopener">Venkatarangan Thirumalai</a></p>
     </div>
   </div>
@@ -145,6 +155,7 @@
 {/if}
 
 <DownloadDialog open={downloadOpen} onclose={() => (downloadOpen = false)} />
+<SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
 <PasswordDialog />
 <Preview uid={previewUid} onclose={() => (previewUid = null)} onnavigate={(uid) => (previewUid = uid)} />
 <ConfirmDialog

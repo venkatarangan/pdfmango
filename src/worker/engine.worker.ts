@@ -21,8 +21,8 @@ const api = {
     await engine;
     return true;
   },
-  open: (bytes: ArrayBuffer) => call((e) => e.open(bytes)),
-  unlock: (sourceId: string, password: string) => call((e) => e.unlock(sourceId, password)),
+  open: (bytes: ArrayBuffer, respectRestrictions: boolean) => call((e) => e.open(bytes, respectRestrictions)),
+  unlock: (sourceId: string, password: string, respectRestrictions: boolean) => call((e) => e.unlock(sourceId, password, respectRestrictions)),
   addImage: (bytes: ArrayBuffer) => call((e) => e.addImage(bytes)),
   renderThumb: (sourceId: string, srcIndex: number, widthPx: number) =>
     call(async (e) => {

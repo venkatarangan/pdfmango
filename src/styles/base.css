@@ -211,6 +211,10 @@ select {
   color: var(--text);
   text-decoration: none;
   font-weight: 500;
+  white-space: nowrap;
+}
+.appbar nav .icon-btn {
+  color: var(--text);
 }
 .appbar nav a:hover {
   background: rgb(28 27 31 / 0.06);
@@ -264,5 +268,32 @@ select {
   .tip.tip-above:focus-visible::after {
     top: auto;
     bottom: calc(100% + 6px);
+  }
+}
+
+/* Narrow screens: keep the app bar on one line. */
+@media (max-width: 720px) {
+  .appbar nav a {
+    padding: 0 8px;
+  }
+}
+@media (max-width: 420px) {
+  .appbar {
+    gap: 4px;
+    padding-right: 4px;
+  }
+  .brand {
+    gap: 8px;
+    font-size: 16px;
+  }
+  .brand img {
+    width: 30px;
+    height: 30px;
+  }
+  .appbar nav {
+    gap: 0;
+  }
+  .appbar nav a {
+    padding: 0 6px;
   }
 }
