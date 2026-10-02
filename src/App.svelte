@@ -109,9 +109,14 @@
     <div class="dropcard" onclick={(e) => e.target === e.currentTarget && chooseFiles()}>
       <Icon name="upload" size={48} />
       <h1>Drop PDFs or images here</h1>
-      <button type="button" class="btn btn-filled" onclick={chooseFiles} aria-describedby="empty-line">Choose files</button>
+      <button type="button" class="btn btn-filled" onclick={chooseFiles}>Choose files</button>
     </div>
-    <p class="empty-line" id="empty-line">Merge, reorder, rotate and compress. Your files never leave your device.</p>
+    <div class="intro">
+      <p>PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size.</p>
+      <p>Your files never leave your device: no upload, no sign-up, no ads, on Windows, Mac, Linux, Android and iPhone.</p>
+      <p class="why">“Every PDF tool I tried was full of ads, cluttered, or wanted my documents on its server, so I had one built that is none of those.” — Venkatarangan</p>
+      <p><a href="/about/">About PDFMango →</a></p>
+    </div>
   </div>
 {:else}
   <Toolbar onadd={chooseFiles} ondownload={() => (downloadOpen = true)} onstartover={askStartOver} ondeleteall={askDeleteAll} />
