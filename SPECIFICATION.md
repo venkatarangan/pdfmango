@@ -244,7 +244,7 @@ One screen, white, Material 3-inspired, with mango as the only accent colour. Li
 - **Page cards:** 12 px corners, a light outline, slight elevation on hover. Selected = 2 px mango outline + a check badge in the corner.
 - **Download dialog:** a centred dialog on desktop, a bottom sheet on phones.
 - **Feedback:** a linear progress bar inside the dialog; a snackbar for results and errors.
-- **Footer:** "PDFMango v1.0.0 · Free and open source (AGPL-3.0) · Your files never leave your device · Generated with Claude Opus 5.5 · A mangoidiots.com project".
+- **Footer:** "PDFMango v1.0.0 · Free and open source (AGPL-3.0) · Your files never leave your device · A mangoidiots.com project". (2 Oct 2026: the AI credit moved to a "Built with AI" section on the About page; the Source code link is in the app bar only.)
 
 ### Logo and brand
 
@@ -330,7 +330,7 @@ object-src 'none'; base-uri 'self'
 ### Licence
 
 - Repo licence: AGPL-3.0-or-later. This is required because MuPDF.js is AGPL.
-- A visible "Source code" link in the header and footer pointing at the public GitHub repo. This meets AGPL's duty to offer the source to people using the app over a network.
+- A visible "Source code" link in the header (app bar) pointing at the public GitHub repo. This meets AGPL's duty to offer the source to people using the app over a network.
 - A `THIRD_PARTY_NOTICES.md` listing MuPDF.js (Artifex) and every other dependency with its licence.
 - The mangoidiots name and logo are Venkat's own branding.
 

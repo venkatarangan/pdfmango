@@ -6,6 +6,12 @@ All notable changes to PDFMango. Versions follow [semantic versioning](https://s
 
 First complete build, milestones 1–6 of the spec.
 
+### Changed (2 Oct 2026)
+
+- Empty screen explains what PDFMango is, links to About, and quotes why it was built, credited to Venkatarangan Thirumalai.
+- Footer is shorter: the AI credit moved to a new "Built with AI" section on the About page, and the Source code link lives in the app bar only.
+- About page opens with the social-preview image (also cached for offline use).
+
 ### Added
 
 - Spike (milestone 1) proving MuPDF.js 1.28.1 in a static site; findings in `SPIKE.md`.

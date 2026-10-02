@@ -5,6 +5,14 @@
   font-size: 16px;
   line-height: 26px;
 }
+.about .hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 28px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius);
+}
 .about h1 {
   font-size: 28px;
   line-height: 36px;

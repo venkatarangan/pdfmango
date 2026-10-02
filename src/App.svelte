@@ -113,9 +113,8 @@
     </div>
     <div class="intro">
       <p>PDFMango is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size.</p>
-      <p>Your files never leave your device: no upload, no sign-up, no ads, on Windows, Mac, Linux, Android and iPhone.</p>
-      <p class="why">“Every PDF tool I tried was full of ads, cluttered, or wanted my documents on its server, so I had one built that is none of those.” — Venkatarangan</p>
-      <p><a href="/about/">About PDFMango →</a></p>
+      <p>Your files never leave your device: no upload, no sign-up, no ads, on Windows, Mac, Linux, Android and iPhone. <a href="/about/">About PDFMango →</a></p>
+      <p class="why">“Every PDF tool I tried was full of ads, cluttered, or wanted my documents on its server, so I had one built that is none of those.” — <a href="https://thefoundercatalyst.com/venkatarangan" rel="noopener">Venkatarangan Thirumalai</a></p>
     </div>
   </div>
 {:else}

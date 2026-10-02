@@ -233,7 +233,9 @@ test('About page carries the required texts', async ({ page }) => {
   await expect(page.getByText('PDFMango uses Google Analytics to count anonymous visits')).toBeVisible();
   await expect(page.getByText('provided as is, without warranty of any kind')).toBeVisible();
   await expect(page.getByRole('link', { name: 'MuPDF.js' })).toBeVisible();
-  await expect(page.locator('footer.footer')).toContainText('Generated with Claude Opus 5.5');
+  await expect(page.getByRole('heading', { name: 'Built with AI' })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Claude Opus 5.5');
+  await expect(page.locator('img.hero')).toBeVisible();
 });
 
 test('works offline after the first visit', async ({ page, context }) => {

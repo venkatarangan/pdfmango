@@ -160,6 +160,6 @@ PDFMango is built on:
 
 Every dependency and its licence is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-PDFMango is licensed under the **GNU Affero General Public License v3.0 or later** ([LICENSE](LICENSE)), as MuPDF.js requires. The "Source code" links in the app bar and footer offer the source to everyone who uses the app over a network, as the AGPL asks.
+PDFMango is licensed under the **GNU Affero General Public License v3.0 or later** ([LICENSE](LICENSE)), as MuPDF.js requires. The "Source code" link in the app bar offers the source to everyone who uses the app over a network, as the AGPL asks.
 
 The mangoidiots name and logo are Venkatarangan Thirumalai's own branding and are not covered by the AGPL.

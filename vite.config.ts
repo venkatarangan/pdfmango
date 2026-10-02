@@ -65,7 +65,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest}'],
-        globIgnores: ['social-preview.png'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackAllowlist: [/^\/$/],

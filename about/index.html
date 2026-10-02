@@ -33,6 +33,7 @@
     </header>
 
     <main class="about">
+      <img class="hero" src="/social-preview.png" width="1200" height="630" alt="PDFMango: merge, reorder, rotate and compress PDFs. Your files never leave your device." />
       <h1>About PDFMango</h1>
       <p class="lead">
         PDFMango is a free PDF tool that runs entirely in your browser. It merges PDFs, puts pages in the right order, turns
@@ -117,14 +118,29 @@
           <li><a href="https://vite-pwa-org.netlify.app/" rel="noopener">vite-plugin-pwa</a> and Workbox — offline support (MIT)</li>
           <li><a href="https://fonts.google.com/icons" rel="noopener">Material Symbols</a> — icons (Apache-2.0)</li>
         </ul>
-        <p>Designed and developed with Claude (Opus 5.5) by Anthropic. The mangoidiots name and logo are Venkatarangan Thirumalai's own branding.</p>
+        <p>The mangoidiots name and logo are Venkatarangan Thirumalai's own branding.</p>
+      </section>
+
+      <section aria-labelledby="ai">
+        <h2 id="ai">Built with AI</h2>
+        <p>
+          PDFMango was generated with <strong>Claude Opus 5.5</strong>, Anthropic's AI model, working in
+          <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a>. Venkatarangan Thirumalai wrote the
+          specification and made the product decisions; Claude designed and wrote the code, the tests and this documentation,
+          tested the PDF engine before building on it, and checked its work with automated tests on desktop and phone layouts.
+        </p>
+        <p>
+          Everything is open: the
+          <a href="https://github.com/venkatarangan/pdfmango/blob/main/SPECIFICATION.md" rel="noopener">specification</a>, the
+          <a href="https://github.com/venkatarangan/pdfmango/blob/main/prompt-history.md" rel="noopener">prompts used to build it</a>
+          and the <a href="https://github.com/venkatarangan/pdfmango/blob/main/SPIKE.md" rel="noopener">engine spike findings</a>
+          are in the source repository, so anyone can see exactly how it was made.
+        </p>
       </section>
     </main>
 
     <footer class="footer">
-      PDFMango v%PDFMANGO_VERSION% · Free and open source (AGPL-3.0) ·
-      <a href="https://github.com/venkatarangan/pdfmango" rel="noopener">Source code</a> ·
-      Your files never leave your device · Generated with Claude Opus 5.5 ·
+      PDFMango v%PDFMANGO_VERSION% · Free and open source (AGPL-3.0) · Your files never leave your device ·
       A <a href="https://mangoidiots.com" rel="noopener">mangoidiots.com</a> project
     </footer>
   </body>
