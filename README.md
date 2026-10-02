@@ -48,9 +48,10 @@ If you change Settings, only your choices are saved in your browser. In the GA4 
 
 1. Drop PDFs or photos on the page, or press **Choose files**.
 2. Drag pages into order.
-3. Select pages to rotate or delete them.
-4. Press **Preview** and pick a compression level.
+3. Select pages to rotate or delete them. **Page tools** (on a phone, **More**) duplicates pages, inserts a blank page, reverses the order and selects odd or even pages.
+4. To save the whole document, press **Save all pages** and pick a compression level, or switch to **Images**.
 5. Press **Preview & Share** to check the result, then **Download** or **Share** it. (**Direct Download** skips the check.)
+6. To save only some pages, select them and use **Extract as PDF** or **Extract as images** in the bar that appears.
 
 ## Development
 

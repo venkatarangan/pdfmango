@@ -18,6 +18,13 @@
 
   let fileInput: HTMLInputElement | undefined = $state();
   let downloadOpen = $state(false);
+  let downloadScope = $state<'all' | 'selected'>('all');
+  let downloadMode = $state<'pdf' | 'images' | null>(null);
+  function openExport(scope: 'all' | 'selected', mode: 'pdf' | 'images' | null) {
+    downloadScope = scope;
+    downloadMode = mode;
+    downloadOpen = true;
+  }
   let previewUid = $state<string | null>(null);
   let settingsOpen = $state(false);
   let built = $state.raw<BuiltPdf | null>(null);
@@ -131,7 +138,13 @@
     </div>
   </div>
 {:else}
-  <Toolbar onadd={chooseFiles} ondownload={() => (downloadOpen = true)} onstartover={askStartOver} ondeleteall={askDeleteAll} />
+  <Toolbar
+    onadd={chooseFiles}
+    ondownload={() => openExport('all', null)}
+    onextract={(mode) => openExport('selected', mode)}
+    onstartover={askStartOver}
+    ondeleteall={askDeleteAll}
+  />
   {#if app.loading > 0}
     <div class="loading" role="status">
       <div class="indeterminate" aria-hidden="true"></div>
@@ -157,13 +170,13 @@
   </div>
 {/if}
 
-<DownloadDialog open={downloadOpen} onclose={() => (downloadOpen = false)} onpreview={(b) => (built = b)} />
+<DownloadDialog open={downloadOpen} scope={downloadScope} startMode={downloadMode} onclose={() => (downloadOpen = false)} onpreview={(b) => (built = b)} />
 <ResultPreview
   {built}
   onclose={() => (built = null)}
   onretry={() => {
     built = null;
-    downloadOpen = true;
+    openExport(downloadScope, null); // same pages, last mode
   }}
 />
 <SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />

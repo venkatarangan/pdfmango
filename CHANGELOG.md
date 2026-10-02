@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 (October 2026)
+
+- Clearer page tools: the ⋮ button is now a labelled **Page tools** menu, and the phone's bottom bar has labels (Add, Left, Right, Delete, More).
+- Selecting pages shows a bar with the count, Duplicate, **Extract as PDF** and **Extract as images**. On phones, Extract as images is greyed out above 10 pages, with the reason shown.
+- The main button is now **Save all N pages** and always saves every page; the "Only the selected pages" checkbox is gone.
+- Fixed: on 320 px phones (iPhone SE size) the page no longer scrolls sideways.
+
 ## 0.2.0 (October 2026)
 
 - Save pages as images: PNG or JPG (Auto picks per page), at Screen, Standard or Print resolution. Phones share up to 10 images at a time; computers download one ZIP.

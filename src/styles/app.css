@@ -80,4 +80,8 @@
   body:has(.bottombar) {
     padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
+  /* The selection bar covers the app bar and a little more; keep the first row of pages clear. */
+  body:has(.selbar) {
+    padding-top: 56px;
+  }
 }

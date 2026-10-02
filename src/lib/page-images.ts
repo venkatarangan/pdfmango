@@ -19,4 +19,4 @@ export function dpiLabel(dpi: number): string {
 /** Phones share at most this many images at a time; computers have no limit (they get a ZIP). */
 export const MAX_IMAGES_ON_PHONES = config.imageExport.maxOnPhones;
 
-export const PHONE_LIMIT_MESSAGE = `On phones you can save up to ${MAX_IMAGES_ON_PHONES} pages as images at a time. Select ${MAX_IMAGES_ON_PHONES} or fewer pages.`;
+export const PHONE_LIMIT_MESSAGE = `On phones you can save up to ${MAX_IMAGES_ON_PHONES} pages as images at a time. Select up to ${MAX_IMAGES_ON_PHONES} pages, then use Extract as images.`;

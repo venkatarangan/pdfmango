@@ -4,7 +4,7 @@
   import { config } from '../pdfmango.config';
   import { marginPtFor } from '../lib/settings';
   import { settings } from '../lib/settings.svelte';
-  import { defaultFileName, defaultImageBase, finalImageBase } from '../lib/filenames';
+  import { defaultFileName, defaultImageBase, finalImageBase, pageImageName } from '../lib/filenames';
   import { formatBytes, plural } from '../lib/format';
   import { isMobile, readDeviceEnv } from '../lib/limits';
   import { IMAGE_FORMATS, MAX_IMAGES_ON_PHONES, PHONE_LIMIT_MESSAGE, dpiLabel } from '../lib/page-images';
@@ -13,8 +13,16 @@
   import Dialog from './Dialog.svelte';
   import Icon from './Icon.svelte';
 
-  type Props = { open: boolean; onclose: () => void; onpreview: (built: BuiltPdf) => void };
-  let { open, onclose, onpreview }: Props = $props();
+  type Props = {
+    open: boolean;
+    /** 'all' saves every page (the main Save button); 'selected' saves only the selection (Extract). */
+    scope: 'all' | 'selected';
+    /** Mode to open in; null keeps the last one used during this visit. */
+    startMode: 'pdf' | 'images' | null;
+    onclose: () => void;
+    onpreview: (built: BuiltPdf) => void;
+  };
+  let { open, scope, startMode, onclose, onpreview }: Props = $props();
 
   const job = new ExportJob();
   const imageJob = new ImageJob();
@@ -22,8 +30,6 @@
   const phone = isMobile(readDeviceEnv());
 
   let mode = $state<'pdf' | 'images'>('pdf');
-  /** Export only the selected pages (offered when some, but not all, pages are selected). */
-  let selectedOnly = $state(false);
   let fileName = $state('');
   let docTitle = $state('');
   let level = $state<CompressionLevel>('lossless');
@@ -36,19 +42,16 @@
   let images = $state.raw<BuiltImages | null>(null);
   const levelList = $derived(levels(settings.current));
 
-  const selCount = $derived(app.selection.size);
-  const canPickSelected = $derived(selCount > 0 && selCount < app.pages.length);
-  const chosen = $derived(selectedOnly && canPickSelected ? app.pages.filter((p) => app.selection.has(p.uid)) : app.pages);
+  const selectedOnly = $derived(scope === 'selected' && app.selection.size > 0);
+  const chosen = $derived(selectedOnly ? app.pages.filter((p) => app.selection.has(p.uid)) : app.pages);
   // Phones share at most MAX_IMAGES_ON_PHONES images at a time; computers have no limit.
-  const imageCountIfChosen = $derived(selCount > 0 ? selCount : app.pages.length);
-  const imagesBlocked = $derived(phone && imageCountIfChosen > MAX_IMAGES_ON_PHONES);
-  const allPagesBlocked = $derived(phone && mode === 'images' && app.pages.length > MAX_IMAGES_ON_PHONES);
+  const imagesBlocked = $derived(phone && chosen.length > MAX_IMAGES_ON_PHONES);
+  const title = $derived(selectedOnly ? `Selected pages as ${mode === 'pdf' ? 'PDF' : 'images'}` : mode === 'pdf' ? 'Your PDF' : 'Your images');
+  const scopeLine = $derived(selectedOnly ? `The ${plural(chosen.length, 'selected page')}` : chosen.length === 1 ? 'Your page' : `All ${chosen.length} pages`);
 
   function setMode(m: 'pdf' | 'images') {
     if (m === 'images' && imagesBlocked) return;
     mode = m;
-    // Images start from the selection; a PDF starts from every page, as before.
-    selectedOnly = m === 'images' && canPickSelected;
   }
 
   // Choices are kept for the rest of the visit (so "Try another level" comes back to them). On each
@@ -67,8 +70,9 @@
   let moreOpen = $state(true);
   $effect(() => {
     if (open && !wasOpen) {
-      const used = app.usedSources();
-      const name = defaultFileName(used);
+      const used = app.usedSources(chosen);
+      const whole = defaultFileName(used);
+      const name = selectedOnly ? whole.replace(/(-edited)?\.pdf$/, '-selected.pdf') : whole;
       if (!fileName.trim() || fileName === lastDefaultName) fileName = name;
       lastDefaultName = name;
       const base = defaultImageBase(used);
@@ -81,7 +85,8 @@
       if (s.imageExportDpi !== lastDefaults.dpi) imageDpi = s.imageExportDpi;
       lastDefaults = { size: s.imageDefaultSize, margin: s.imageDefaultMargin, format: s.imageExportFormat, dpi: s.imageExportDpi };
       moreOpen = !matchMedia('(max-width: 720px)').matches;
-      setMode(mode === 'images' && !imagesBlocked ? 'images' : 'pdf');
+      const want = startMode ?? mode;
+      mode = want === 'images' && !imagesBlocked ? 'images' : 'pdf';
       images = null;
     }
     wasOpen = open;
@@ -147,10 +152,13 @@
   const progress = $derived(job.progress ?? imageJob.progress);
   const pct = $derived(progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0);
   const pagesWord = $derived(plural(chosen.length, 'page'));
-  const sampleName = $derived(`${finalImageBase(imageBase, 'pages')}-p${'1'.padStart(String(app.pages.length).length, '0')}`);
+  // The first file's real name: page numbers are positions in the full list, so a selection may start at p07.
+  const sampleName = $derived(
+    pageImageName(finalImageBase(imageBase, 'pages'), chosen.length ? app.pages.indexOf(chosen[0]) + 1 : 1, app.pages.length, 'png').replace(/\.png$/, ''),
+  );
 </script>
 
-<Dialog {open} title={mode === 'pdf' ? 'Your PDF' : 'Your images'} sheet initialFocus=".top-action" dismissable={!running} onclose={() => !running && onclose()}>
+<Dialog {open} {title} sheet initialFocus=".top-action" dismissable={!running} onclose={() => !running && onclose()}>
   <form id="download-form" class="form" onsubmit={submit}>
     <div class="segmented modes" role="radiogroup" aria-label="Save as">
       <label class:checked={mode === 'pdf'}>
@@ -160,6 +168,7 @@
         <input type="radio" name="mode" value="images" checked={mode === 'images'} disabled={running || imagesBlocked} aria-describedby={imagesBlocked ? 'images-limit' : undefined} onchange={() => setMode('images')} /><Icon name="image" size={20} /> Images
       </label>
     </div>
+    <p class="scope">{scopeLine}</p>
     {#if imagesBlocked}
       <p class="limit" id="images-limit"><Icon name="info" size={18} /> {PHONE_LIMIT_MESSAGE}</p>
     {/if}
@@ -192,14 +201,6 @@
       </div>
     {:else}
       <button type="submit" class="btn btn-filled top-action"><Icon name="image" /> Save {chosen.length === 1 ? '1 page as an image' : `${pagesWord} as images`}</button>
-    {/if}
-
-    {#if canPickSelected}
-      <label class="check">
-        <input type="checkbox" bind:checked={selectedOnly} disabled={running || allPagesBlocked} />
-        Only the {plural(selCount, 'selected page')}
-        {#if allPagesBlocked}<span class="hint">(phones save up to {MAX_IMAGES_ON_PHONES} at a time)</span>{/if}
-      </label>
     {/if}
 
     {#if mode === 'pdf'}
@@ -309,17 +310,10 @@
     margin: -8px 0 0;
     color: var(--text-2);
   }
-  .check {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 40px;
-    cursor: pointer;
-  }
-  .check input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--mango-ink);
+  .scope {
+    margin: -8px 0 0;
+    color: var(--text-2);
+    font-weight: 600;
   }
   .optional {
     color: var(--text-2);

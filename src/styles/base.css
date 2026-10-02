@@ -301,3 +301,13 @@ select {
     padding: 0 6px;
   }
 }
+/* 320 px phones (iPhone SE size): tighter app bar so nothing scrolls sideways. */
+@media (max-width: 360px) {
+  .brand {
+    gap: 6px;
+  }
+  .appbar nav a {
+    padding: 0 3px;
+    font-size: 14px;
+  }
+}
