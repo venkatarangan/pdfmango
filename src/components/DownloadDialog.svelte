@@ -19,13 +19,24 @@
   let imageMargin = $state<ImageMargin>(settings.current.imageDefaultMargin);
   const levelList = $derived(levels(settings.current));
 
-  // Each time the dialog opens: a fresh default name, and image options from the visitor's settings.
+  // Choices are kept for the rest of the visit (so "Try another level" comes back to them). On each
+  // open, only values the visitor hasn't changed follow new defaults: the file name follows the pages,
+  // and the image options follow Settings.
   let wasOpen = false;
+  let lastDefaultName = '';
+  let lastDefaults = { size: settings.current.imageDefaultSize, margin: settings.current.imageDefaultMargin };
+  /** On phones the less common options start folded away to keep the sheet short. */
+  let moreOpen = $state(true);
   $effect(() => {
     if (open && !wasOpen) {
-      fileName = defaultFileName(app.usedSources());
-      imagePageSize = settings.current.imageDefaultSize;
-      imageMargin = settings.current.imageDefaultMargin;
+      const name = defaultFileName(app.usedSources());
+      if (!fileName.trim() || fileName === lastDefaultName) fileName = name;
+      lastDefaultName = name;
+      const s = settings.current;
+      if (s.imageDefaultSize !== lastDefaults.size) imagePageSize = s.imageDefaultSize;
+      if (s.imageDefaultMargin !== lastDefaults.margin) imageMargin = s.imageDefaultMargin;
+      lastDefaults = { size: s.imageDefaultSize, margin: s.imageDefaultMargin };
+      moreOpen = !matchMedia('(max-width: 720px)').matches;
     }
     wasOpen = open;
   });
@@ -101,26 +112,31 @@
       {/each}
     </fieldset>
 
-    {#if app.hasImagePages}
-      <fieldset disabled={job.running}>
-        <legend>Image pages</legend>
-        <div class="segmented" role="radiogroup" aria-label="Page size">
-          <label class:checked={imagePageSize === 'A4'}><input type="radio" value="A4" bind:group={imagePageSize} />A4</label>
-          <label class:checked={imagePageSize === 'original'}><input type="radio" value="original" bind:group={imagePageSize} />Original image size</label>
-        </div>
-        <div class="segmented" role="radiogroup" aria-label="Margin">
-          <span class="seg-label">Margin</span>
-          {#each MARGINS as m (m.id)}
-            <label class:checked={imageMargin === m.id}><input type="radio" value={m.id} bind:group={imageMargin} />{m.label}</label>
-          {/each}
-        </div>
-      </fieldset>
-    {/if}
+    {#if app.hasImagePages || notices.length}
+      <details class="more" bind:open={moreOpen}>
+        <summary>More options{notices.length ? ` · ${notices.length} ${notices.length === 1 ? 'note' : 'notes'}` : ''}</summary>
+        {#if app.hasImagePages}
+          <fieldset disabled={job.running}>
+            <legend>Image pages</legend>
+            <div class="segmented" role="radiogroup" aria-label="Page size">
+              <label class:checked={imagePageSize === 'A4'}><input type="radio" value="A4" bind:group={imagePageSize} />A4</label>
+              <label class:checked={imagePageSize === 'original'}><input type="radio" value="original" bind:group={imagePageSize} />Original image size</label>
+            </div>
+            <div class="segmented" role="radiogroup" aria-label="Margin">
+              <span class="seg-label">Margin</span>
+              {#each MARGINS as m (m.id)}
+                <label class:checked={imageMargin === m.id}><input type="radio" value={m.id} bind:group={imageMargin} />{m.label}</label>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
 
-    {#if notices.length}
-      <ul class="notices">
-        {#each notices as n (n)}<li><Icon name="info" size={18} /> {n}</li>{/each}
-      </ul>
+        {#if notices.length}
+          <ul class="notices">
+            {#each notices as n (n)}<li><Icon name="info" size={18} /> {n}</li>{/each}
+          </ul>
+        {/if}
+      </details>
     {/if}
   </form>
 
@@ -248,6 +264,34 @@
     position: absolute;
     opacity: 0;
     pointer-events: none;
+  }
+  .more {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .more summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .more summary::-webkit-details-marker {
+    display: none;
+  }
+  .more summary::before {
+    content: '▸';
+    color: var(--mango-ink);
+    transition: transform var(--motion) var(--ease);
+  }
+  .more[open] summary::before {
+    transform: rotate(90deg);
+  }
+  .more[open] > :global(*:not(summary)) {
+    margin-top: 12px;
   }
   .notices {
     display: flex;

@@ -1,21 +1,25 @@
 <script lang="ts">
   import { canShareFiles, resultMessage, saveBuilt, shareBuilt, type BuiltPdf } from '../lib/actions.svelte';
   import { Comlink, engine } from '../lib/engine';
-  import { plural } from '../lib/format';
+  import { emailVerdict, formatBytes, plural } from '../lib/format';
+  import { isMobile, readDeviceEnv } from '../lib/limits';
   import { renderLarge } from '../lib/thumbs';
   import type { PageSize } from '../lib/types';
   import { observeVisible } from '../lib/visible';
   import IconButton from './IconButton.svelte';
   import Icon from './Icon.svelte';
 
-  type Props = { built: BuiltPdf | null; onclose: () => void };
-  let { built, onclose }: Props = $props();
+  type Props = { built: BuiltPdf | null; onclose: () => void; onretry: () => void };
+  let { built, onclose, onretry }: Props = $props();
 
   let el: HTMLDialogElement | undefined = $state();
   let sourceId = $state<string | null>(null);
   let pageSizes = $state<PageSize[]>([]);
   let failed = $state(false);
   const canShare = canShareFiles();
+  // On phones, sending the file on is usually the goal (and "Save to Files" is in the share sheet).
+  const shareFirst = canShare && isMobile(readDeviceEnv());
+  const verdict = $derived(built ? emailVerdict(built.outputSize) : null);
 
   // Open a copy of the finished PDF in the engine (the original stays here for download/share).
   $effect(() => {
@@ -100,6 +104,11 @@
       </div>
       <IconButton icon="close" label="Back" onclick={onclose} />
     </header>
+    <div class="size" class:warn={!verdict?.ok}>
+      <span class="big">{formatBytes(built.outputSize)}</span>
+      <span class="verdict">{verdict?.text}</span>
+      <button type="button" class="btn btn-text retry" onclick={onretry}>Try another level</button>
+    </div>
 
     <div class="pages">
       {#if failed}
@@ -118,10 +127,10 @@
 
     <footer>
       <button type="button" class="btn btn-text" onclick={onclose}>Back</button>
+      <button type="button" class="btn {shareFirst ? 'btn-outlined' : 'btn-filled'}" onclick={download}><Icon name="download" /> Download</button>
       {#if canShare}
-        <button type="button" class="btn btn-outlined" onclick={() => built && shareBuilt(built)}><Icon name="share" /> Share</button>
+        <button type="button" class="btn {shareFirst ? 'btn-filled' : 'btn-outlined'}" onclick={() => built && shareBuilt(built)}><Icon name="share" /> Share</button>
       {/if}
-      <button type="button" class="btn btn-filled" onclick={download}><Icon name="download" /> Download</button>
     </footer>
   {/if}
 </dialog>
@@ -140,7 +149,7 @@
   }
   .result[open] {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
   }
   .result::backdrop {
     background: var(--scrim);
@@ -160,6 +169,38 @@
     justify-content: flex-end;
     border-top: 1px solid var(--outline);
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .size {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 10px 16px;
+    background: var(--bg);
+    color: var(--text);
+    border-bottom: 1px solid var(--outline);
+  }
+  .size.warn {
+    background: var(--mango-tint);
+    color: var(--mango-ink);
+  }
+  .big {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 28px;
+  }
+  .verdict {
+    flex: 1;
+    min-width: 160px;
+    font-weight: 500;
+  }
+  .retry {
+    min-height: 40px;
+    padding: 0 8px;
+    margin-left: -8px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .title {
     display: flex;

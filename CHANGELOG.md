@@ -10,4 +10,4 @@ First release.
 - Handles password-protected, restricted and damaged PDFs, up to 1,000 pages.
 - Works on phones, works offline after the first visit, and can be used with the keyboard alone.
 - Settings dialog to change the defaults in your own browser.
-- Preview the finished PDF before downloading; Share to other apps on phones.
+- Preview the finished PDF before downloading, with its size and an email check; Share to other apps on phones.

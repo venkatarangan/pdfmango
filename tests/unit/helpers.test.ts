@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { baseName, defaultFileName, finalFileName } from '../../src/lib/filenames';
 import { checkPages, checkSize, isMobile, sizeLimit } from '../../src/lib/limits';
 import { sniff } from '../../src/lib/filetypes';
-import { formatBytes, resultLine } from '../../src/lib/format';
+import { emailVerdict, formatBytes, resultLine } from '../../src/lib/format';
 import { planFor } from '../../src/lib/compression';
 import { DEFAULTS, marginPtFor } from '../../src/lib/settings';
 
@@ -97,5 +97,14 @@ describe('compression options', () => {
   });
   it('maps margins to points', () => {
     expect([marginPtFor(DEFAULTS, 'none'), marginPtFor(DEFAULTS, 'small'), marginPtFor(DEFAULTS, 'medium')]).toEqual([0, 18, 36]);
+  });
+});
+
+describe('emailVerdict', () => {
+  it('says whether the file suits email', () => {
+    expect(emailVerdict(570 * 1024)).toEqual({ text: 'Small enough to email', ok: true });
+    expect(emailVerdict(10 * 1048576)).toMatchObject({ ok: true });
+    expect(emailVerdict(15 * 1048576).text).toMatch(/some email/);
+    expect(emailVerdict(30 * 1048576).text).toMatch(/most email/);
   });
 });

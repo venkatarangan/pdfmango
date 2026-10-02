@@ -34,6 +34,10 @@ Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what 
 
 11. > the download, preview and share buttons flow is not clear from enduser perspective. In the first level where the pages thumbnail are shown, rename the download button to preview. in the popup that comes: rename the preview button as "Preview & Share" and move the button to the top of the popup for easy access in mobile; rename download button below as "Direct Download". Any other suggestions you may have let me know
 
+12. > 1. OK, 2. OK, 3. OK. 4. OK. 5. OK. Go ahead and implement your suggestions, review it afterwards. publish it.
+
+    The five suggestions: Share as the main button on phones; remember the chosen level during a visit; show the file size and an email check on the preview; a "Try another level" button; fold the less common options on phones.
+
 ## What changed from the plan
 
 | Topic | Plan said | What was built |

@@ -158,7 +158,14 @@
 {/if}
 
 <DownloadDialog open={downloadOpen} onclose={() => (downloadOpen = false)} onpreview={(b) => (built = b)} />
-<ResultPreview {built} onclose={() => (built = null)} />
+<ResultPreview
+  {built}
+  onclose={() => (built = null)}
+  onretry={() => {
+    built = null;
+    downloadOpen = true;
+  }}
+/>
 <SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
 <PasswordDialog />
 <Preview uid={previewUid} onclose={() => (previewUid = null)} onnavigate={(uid) => (previewUid = uid)} />

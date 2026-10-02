@@ -349,3 +349,42 @@ test('Share hands the PDF to the system share sheet where supported', async ({ p
     { name: 'tamil-unicode-edited.pdf', type: 'application/pdf', size: expect.any(Number) },
   ]);
 });
+
+test('preview shows the size verdict; Try another level keeps the level and file name', async ({ page }) => {
+  await page.goto('/');
+  await addFiles(page, ['tamil-unicode.pdf'], 3);
+  await page.locator('.toolbar .btn-filled').click();
+  const dlg = page.getByRole('dialog', { name: 'Your PDF' });
+  await dlg.getByLabel('File name').fill('my-report.pdf');
+  await dlg.getByText('Balanced', { exact: true }).click();
+  await dlg.getByRole('button', { name: /^Preview/ }).click();
+  const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
+  await expect(preview).toContainText('Small enough to email');
+  await expect(preview).toContainText('my-report.pdf');
+  await preview.getByRole('button', { name: 'Try another level' }).click();
+  await expect(preview).toBeHidden();
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByRole('radio', { name: /Balanced/ })).toBeChecked();
+  await expect(dlg.getByLabel('File name')).toHaveValue('my-report.pdf');
+  // Closing and opening again later in the visit still remembers the level.
+  await dlg.getByRole('button', { name: 'Close' }).click();
+  await page.locator('.toolbar .btn-filled').click();
+  await expect(dlg.getByRole('radio', { name: /Balanced/ })).toBeChecked();
+});
+
+test('phones: extra options start folded; Share is the main button where sharing works @phone', async ({ page }) => {
+  test.skip(!/phone/.test(test.info().project.name), 'phone layout only');
+  await page.addInitScript(() => Object.assign(navigator, { canShare: () => true, share: async () => {} }));
+  await page.goto('/');
+  await addFiles(page, ['phone-portrait-exif6.jpg'], 1);
+  await page.locator('.bottombar .download').click();
+  const dlg = page.getByRole('dialog', { name: 'Your PDF' });
+  await expect(dlg.getByText('More options')).toBeVisible();
+  await expect(dlg.getByText('Original image size')).toBeHidden();
+  await dlg.getByText('More options').click();
+  await expect(dlg.getByText('Original image size')).toBeVisible();
+  await dlg.getByRole('button', { name: 'Preview & Share' }).click();
+  const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
+  await expect(preview.getByRole('button', { name: 'Share' })).toHaveClass(/btn-filled/);
+  await expect(preview.getByRole('button', { name: 'Download' })).toHaveClass(/btn-outlined/);
+});

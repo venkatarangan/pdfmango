@@ -15,3 +15,16 @@ export function resultLine(input: number, output: number): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 }
+
+export type SizeVerdict = { text: string; ok: boolean };
+
+/**
+ * Whether a file is a sensible email attachment. Many workplace mail systems stop at 10 MB;
+ * Gmail and Outlook.com stop at 20–25 MB.
+ */
+export function emailVerdict(bytes: number): SizeVerdict {
+  const mb = bytes / (1024 * 1024);
+  if (mb <= 10) return { text: 'Small enough to email', ok: true };
+  if (mb <= 20) return { text: 'May be too big for some email; Balanced or Strong can shrink it', ok: false };
+  return { text: 'Too big for most email; try Balanced, Strong or Scan', ok: false };
+}

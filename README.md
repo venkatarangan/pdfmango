@@ -22,7 +22,7 @@ A free, open-source PDF tool that runs entirely in your browser. Your files neve
 - Reorder (drag, or Alt+Arrow keys), rotate and delete pages; undo and redo.
 - Photos become upright pages, A4 or original size, with GPS and other hidden details removed.
 - Four compression levels: Lossless, Balanced, Strong and Scan.
-- Preview the finished PDF before downloading, and share it straight to other apps on phones.
+- Preview the finished PDF (with its size, and whether it's small enough to email) before downloading, and share it straight to other apps on phones.
 - Keeps Tamil, CJK and all other text selectable.
 - Handles password-protected and damaged PDFs, up to 1,000 pages.
 - Works on phones and offline, with no upload, account or ads.
