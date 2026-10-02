@@ -11,14 +11,14 @@ export function baseName(name: string): string {
 }
 
 /**
- * Default download name for the sources still used by the page list:
- * `images.pdf` for images only, `<original>-edited.pdf` for one PDF, `merged.pdf` otherwise.
+ * Default download name for the sources still used by the page list: `images.pdf` for images only,
+ * `<original>.pdf` for one converted Word or text file, `<original>-edited.pdf` for one PDF, `merged.pdf` otherwise.
  */
 export function defaultFileName(all: ReadonlyArray<{ name: string; kind: SourceKind }>): string {
   const used = all.filter((s) => s.kind !== 'blank'); // inserted blank pages don't name the file
   if (used.length === 0) return 'document.pdf';
   if (used.every((s) => s.kind === 'image')) return 'images.pdf';
-  if (used.length === 1) return `${baseName(used[0].name)}-edited.pdf`;
+  if (used.length === 1) return `${baseName(used[0].name)}${used[0].kind === 'converted' ? '' : '-edited'}.pdf`;
   return 'merged.pdf';
 }
 

@@ -146,10 +146,10 @@
       </div>
       <div class="sel-actions">
         <button type="button" class="btn btn-outlined" onclick={() => onextract('pdf')} disabled={busy}>
-          <Icon name="pdf" /> <span>Extract<span class="wide"> as</span> PDF</span>
+          <Icon name="pdf" /> <span>Extract<span class="wide">{' '}as</span> PDF</span>
         </button>
         <button type="button" class="btn btn-outlined" onclick={() => onextract('images')} disabled={busy || imagesBlocked} aria-describedby={imagesBlocked ? 'sel-limit' : undefined} title={imagesBlocked ? `Phones extract up to ${MAX_IMAGES_ON_PHONES} pages as images at a time.` : undefined}>
-          <Icon name="image" /> <span>Extract<span class="wide"> as</span> images</span>
+          <Icon name="image" /> <span>Extract<span class="wide">{' '}as</span> images</span>
         </button>
       </div>
       {#if imagesBlocked}
@@ -184,7 +184,7 @@
     {/if}
   </div>
   <button type="button" class="btn btn-filled download" aria-label={saveLabel} onclick={ondownload} disabled={empty || busy}>
-    <Icon name="download" /> <span>Save{#if app.pages.length > 1}<span class="wide"> all</span>{/if}</span>
+    <Icon name="download" /> <span>Save{#if app.pages.length > 1}<span class="wide">{' '}all</span>{/if}</span>
   </button>
 </div>
 

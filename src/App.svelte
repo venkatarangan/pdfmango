@@ -124,12 +124,12 @@
 
 {#if !working}
   <div class="empty-shell">
-    <p class="lede"><a href="/about/">PDFMango</a> is a free, open-source PDF tool that works entirely in your browser. Merge, reorder, rotate and delete pages, turn photos into PDF pages, and shrink big files to email size.</p>
+    <p class="lede"><a href="/about/">PDFMango</a> is a free, open-source PDF tool that works entirely in your browser. Merge and rearrange pages, turn photos, Word and text files into PDF, save pages as images, and shrink big files to email size.</p>
     <!-- The whole card opens the picker; the button is the keyboard and screen-reader route. -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="dropcard" onclick={(e) => e.target === e.currentTarget && chooseFiles()}>
       <Icon name="upload" size={48} />
-      <h1>Drop PDFs or images here</h1>
+      <h1>Drop PDFs, photos, Word or text files here</h1>
       <button type="button" class="btn btn-filled" onclick={chooseFiles}>Choose files</button>
     </div>
     <div class="intro">

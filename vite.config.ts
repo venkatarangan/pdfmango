@@ -43,7 +43,8 @@ export default defineConfig({
     appVersion(),
     contentSecurityPolicy(),
     // Offline support: the service worker precaches the app's own files (including the WASM
-    // engine) and nothing else. No runtime caching, so user files and analytics are never stored.
+    // engine). The only runtime cache holds the app's own script fonts (public/fonts), fetched the
+    // first time a Word or text file needs one; user files and analytics are never stored.
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script', // external registerSW.js, so the CSP needs no inline script
@@ -71,7 +72,13 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true, // control the page on the first visit, so it works offline straight away
         skipWaiting: true,
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/fonts/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'pdfmango-fonts', expiration: { maxEntries: 40 } },
+          },
+        ],
       },
     }),
   ],

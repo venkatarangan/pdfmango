@@ -19,15 +19,19 @@ export const MESSAGES: Record<EngineErrorCode, string> = {
   'not-a-pdf': "This file doesn't look like a PDF.",
   unreadable: "This PDF couldn't be read. It may be damaged beyond repair.",
   'image-unreadable': "This image couldn't be read. It may be damaged.",
+  'word-unreadable': "This Word file couldn't be read. It may be damaged, or saved in an older format (.doc).",
   'out-of-memory': "This file is too large for this device's memory.",
   cancelled: 'Cancelled.',
   'export-failed': 'Something went wrong while saving. Your pages are unchanged; please try again.',
 };
 
+/** Longest codes first, so 'image-unreadable' is never mistaken for 'unreadable'. */
+const CODES = (Object.keys(MESSAGES) as EngineErrorCode[]).sort((a, b) => b.length - a.length);
+
 /** Worker errors arrive as Errors whose message is the code. */
 export function errorCode(e: unknown): EngineErrorCode {
   const m = String((e as Error)?.message ?? e);
-  return (Object.keys(MESSAGES) as EngineErrorCode[]).find((c) => m.includes(c)) ?? (/memory/i.test(m) ? 'out-of-memory' : 'export-failed');
+  return CODES.find((c) => m.includes(c)) ?? (/memory/i.test(m) ? 'out-of-memory' : 'export-failed');
 }
 
 function reportError(code: EngineErrorCode, prefix = '') {
@@ -95,6 +99,7 @@ async function addOne(file: File, limit: ReturnType<typeof sizeLimit>): Promise<
     notify.error(`${file.name}: ${tooBig}`);
     return 0;
   }
+  if (kind.kind === 'docx' || kind.kind === 'text') return addConverted(file, kind.kind);
   if (kind.kind === 'image') {
     const tooMany = checkPages(app.pages.length, 1);
     if (tooMany) {
@@ -140,6 +145,29 @@ async function addOne(file: File, limit: ReturnType<typeof sizeLimit>): Promise<
   if (r.notices.restricted) notify.show(`${file.name}: its author restricted page changes; your settings allow editing it anyway.`);
   return r.pageCount;
 }
+
+/** Word and text files are converted to PDF pages in the worker as they are added. */
+async function addConverted(file: File, kind: 'docx' | 'text'): Promise<number> {
+  const api = await engine();
+  const bytes = await file.arrayBuffer();
+  const r = await api.convert(kind, Comlink.transfer(bytes, [bytes]));
+  if (r.status !== 'ok') return 0;
+  const tooMany = checkPages(app.pages.length, r.pageCount);
+  if (tooMany) {
+    await api.dispose(r.sourceId);
+    notify.error(`${file.name}: ${tooMany}`);
+    return 0;
+  }
+  app.addSource({ id: r.sourceId, name: file.name, kind: 'converted', pageCount: r.pageCount, sizeBytes: file.size, pageSizes: r.pageSizes, notices: r.notices });
+  appendPages(r.sourceId, r.pageCount);
+  track({ name: 'file_added', params: { kind } });
+  if (kind === 'docx' && !wordNoticeShown) {
+    wordNoticeShown = true;
+    notify.show(`${file.name} was converted. Fonts and layout can differ from Word; headers, footers and text boxes are left out.`);
+  }
+  return r.pageCount;
+}
+let wordNoticeShown = false;
 
 function appendPages(sourceId: string, count: number) {
   const fresh: PageRef[] = Array.from({ length: count }, (_, i) => ({ uid: newUid(), sourceId, srcIndex: i, addedRotation: 0 }));

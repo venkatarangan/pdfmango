@@ -48,7 +48,7 @@ test('opens straight into the drop zone, with no CSP violations @phone', async (
   const violations: string[] = [];
   page.on('console', (m) => /Content Security Policy|Refused to/i.test(m.text()) && violations.push(m.text()));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Drop PDFs or images here' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Drop PDFs, photos, Word or text files here' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Choose files' })).toBeVisible();
   await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1);
   await expect(page.locator('footer.footer')).toContainText(/PDFMango v\d+\.\d+\.\d+/);
@@ -165,8 +165,8 @@ test('refuses owner-restricted PDFs, HEIC/WebP and other files with one-line mes
   await page.setInputFiles('input[type=file]', { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: Buffer.from('\0\0\0\x18ftypheic\0\0\0\0mif1heic') });
   await expect(page.locator('.snack')).toContainText('convert to JPG or PNG first');
   await page.locator('.snack').getByRole('button', { name: 'Dismiss' }).click();
-  await page.setInputFiles('input[type=file]', { name: 'notes.docx', mimeType: 'application/octet-stream', buffer: Buffer.from('PK\x03\x04 not a pdf') });
-  await expect(page.locator('.snack')).toContainText('opens PDF, JPG and PNG files');
+  await page.setInputFiles('input[type=file]', { name: 'sheet.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('PK\x03\x04 not a pdf') });
+  await expect(page.locator('.snack')).toContainText('opens PDF, JPG, PNG, Word (.docx) and text (.txt) files');
 });
 
 test('a damaged PDF opens with the repaired notice', async ({ page }) => {
@@ -209,7 +209,7 @@ test('Start over clears everything after a confirm @phone', async ({ page }) => 
     await page.getByRole('menuitem', { name: 'Start over' }).click();
   }
   await page.getByRole('dialog', { name: 'Start over?' }).getByRole('button', { name: 'Start over' }).click();
-  await expect(page.getByRole('heading', { name: 'Drop PDFs or images here' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Drop PDFs, photos, Word or text files here' })).toBeVisible();
 });
 
 test('no request ever carries file data; only same-origin requests on localhost', async ({ page }) => {
@@ -226,12 +226,28 @@ test('no request ever carries file data; only same-origin requests on localhost'
   expect(stored).toEqual({ local: 0, session: 0, cookies: '' });
 });
 
+test('Word and text files become pages, with Tamil drawn from a fetched font', async ({ page }) => {
+  const fonts: string[] = [];
+  page.on('request', (r) => r.url().includes('/fonts/') && fonts.push(new URL(r.url()).pathname));
+  await page.goto('/');
+  await page.setInputFiles('input[type=file]', [fx('sample.docx'), fx('sample.txt')]);
+  await expect(page.locator('.snack')).toContainText('sample.docx was converted');
+  await expect.poll(() => cards(page).count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
+  await expect(cards(page).last().locator('.tag')).toHaveText('sample.txt');
+  expect(fonts).toContain('/fonts/NotoSansTamil-Regular.ttf');
+  const out = await openOutput(await download(page));
+  expect(out.count).toBe(await cards(page).count());
+  expect(out.text(0)).toContain('Quarterly report');
+  expect(out.text(out.count - 1)).toContain('வணக்கம்');
+});
+
 test('About page carries the required texts', async ({ page }) => {
   await page.goto('/about/');
   await expect(page.getByRole('heading', { name: 'Why PDFMango' })).toBeVisible();
   await expect(page.getByText('PDFMango uses Google Analytics to count anonymous visits')).toBeVisible();
   await expect(page.getByText('provided as is, without warranty of any kind')).toBeVisible();
   await expect(page.getByRole('link', { name: 'MuPDF.js' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Word and text files' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Built with AI' })).toBeVisible();
   await expect(page.locator('main')).toContainText('Claude Opus 5.5');
   await expect(page.locator('img.hero')).toBeVisible();
@@ -247,7 +263,7 @@ test('works offline after the first visit', async ({ page, context }) => {
   });
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Drop PDFs or images here' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Drop PDFs, photos, Word or text files here' })).toBeVisible();
   await addFiles(page, ['tamil-unicode.pdf'], 3); // the WASM engine comes from the cache too
   await expect(page.locator('.card canvas.loaded')).toHaveCount(3);
   await page.goto('/about/');

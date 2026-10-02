@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as mupdf from 'mupdf';
 import * as engine from '../../src/worker/engine';
+import { decodeText, setFontFetcher } from '../../src/worker/convert';
 import type { CompressionLevel, ExportOptions, ExportPage, OpenResult } from '../../src/lib/types';
 import { planFor } from '../../src/lib/compression';
 import { DEFAULTS, marginPtFor } from '../../src/lib/settings';
@@ -196,4 +197,67 @@ describe('export', () => {
     });
     await expect(run).rejects.toThrow(/cancelled/);
   }, 60_000);
+});
+
+describe('Word and text files', () => {
+  // In the browser the worker fetches fonts from /fonts; here they come straight from public/fonts.
+  setFontFetcher(async (file) => {
+    const b = readFileSync(new URL(`../../public/fonts/${file}.ttf`, import.meta.url));
+    return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+  });
+
+  /** Fonts used to draw page `i`, and how many pictures it draws. */
+  const drawn = (doc: mupdf.PDFDocument, i: number) => {
+    const fonts = new Set<string>();
+    let images = 0;
+    const page = doc.loadPage(i);
+    const dev = new mupdf.Device({
+      fillImage: () => void images++,
+      fillText: (t) => t.walk({ showGlyph: (f) => void fonts.add(f.getName()) }),
+    });
+    page.run(dev, mupdf.Matrix.identity);
+    dev.close();
+    dev.destroy();
+    page.destroy();
+    return { fonts, images };
+  };
+
+  it('turns a Word file into A4 pages with its picture, Indian scripts and Arabic drawn, and a small file', async () => {
+    const r = ok(await engine.convert('docx', fixture('sample.docx')));
+    expect(r.pageCount).toBeGreaterThanOrEqual(2);
+    expect(r.pageSizes[0][0]).toBeCloseTo(595, 0);
+    expect(r.pageSizes[0][1]).toBeCloseTo(842, 0);
+    const pages = Array.from({ length: r.pageCount }, (_, i) => ({ sourceId: r.sourceId, srcIndex: i, addedRotation: 0 as const }));
+    const out = await engine.exportPdf(pages, opts(), noProgress);
+    expect(out.outputSize).toBeLessThan(300_000); // fonts are cut down to the characters used
+    const doc = reopen(out.bytes);
+    const { fonts, images } = drawn(doc, 0);
+    expect(images).toBe(1);
+    expect([...fonts].join()).toMatch(/NotoSansTamil/);
+    expect([...fonts].join()).toMatch(/NotoSansDevanagari/);
+    expect([...fonts].join()).toMatch(/NotoSansArabic/);
+    expect(text(doc, 0)).toContain('Quarterly report');
+    expect(text(doc, 0)).toContain('Mango');
+    expect(text(doc, 0)).toContain('யாதும்'); // joined letters copy as text, not "�"
+    doc.destroy();
+  });
+
+  it('turns a text file into A4 pages, keeping Tamil and wrapping long lines', async () => {
+    const r = ok(await engine.convert('text', fixture('sample.txt')));
+    expect(r.pageCount).toBe(1);
+    expect(r.pageSizes[0]).toEqual([595, 842]);
+    const out = reopen((await engine.exportPdf([{ sourceId: r.sourceId, srcIndex: 0, addedRotation: 0 }], opts(), noProgress)).bytes);
+    expect(text(out, 0)).toContain('Notes from the meeting');
+    expect([...drawn(out, 0).fonts].join()).toMatch(/NotoSansTamil/);
+    out.destroy();
+  });
+
+  it('reports a damaged Word file as unreadable', async () => {
+    await expect(engine.convert('docx', new TextEncoder().encode('PK\x03\x04 broken').buffer as ArrayBuffer)).rejects.toThrow(/word-unreadable/);
+  });
+
+  it('reads Windows-1252 text that is not valid UTF-8', () => {
+    expect(decodeText(new Uint8Array([0x63, 0x61, 0x66, 0xe9]))).toBe('café');
+    expect(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, 0x68, 0x69]))).toBe('hi');
+  });
 });

@@ -3,18 +3,23 @@
 // images are drawn on a canvas; MuPDF adds encryption, a form field and damage.
 // Usage: npm run fixtures   (or: node scripts/make-fixtures.mjs <outDir>)
 //        npm run fixtures:large   (only the ~245 MB file, just under the 250 MB desktop limit)
+//        add --docs to write only the Word and text samples
 import { chromium } from '@playwright/test';
 import * as mupdf from 'mupdf';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 
 const outDir = path.resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'tests/fixtures');
 const wantLarge = process.argv.includes('--large');
+const wantDocsOnly = process.argv.includes('--docs');
 fs.mkdirSync(outDir, { recursive: true });
 const write = (name, bytes) => {
   fs.writeFileSync(path.join(outDir, name), bytes);
   console.log(`${name.padEnd(32)} ${(bytes.length / 1024).toFixed(0).padStart(8)} KB`);
 };
+
+const LOREM_SHORT = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore. ';
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -94,7 +99,7 @@ function withExif(jpeg, orientation) {
   return new Uint8Array([0xff, 0xd8, ...app1, ...jpeg.subarray(i)]);
 }
 
-if (!wantLarge) {
+if (!wantLarge && !wantDocsOnly) {
 // ---- Tamil Unicode text, embedded fonts ---------------------------------------------------------
 // Public-domain classical verses (Thirukkural, Purananuru, Bharathiyar) plus plain test sentences.
 const TAMIL_MARKER = 'யாதும் ஊரே யாவரும் கேளிர்';
@@ -247,6 +252,81 @@ write('plain.png', await canvasImage({ w: 640, h: 480, seed: 6, type: 'image/png
   write('damaged.pdf', damaged);
 }
 
+}
+
+// ---- Word (.docx) and text (.txt) samples for conversion -----------------------------------------
+/** A store-only ZIP (Word files are ZIP packages). */
+function zipStore(files) {
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  for (const [name, data] of Object.entries(files)) {
+    const n = Buffer.from(name);
+    const d = Buffer.from(data);
+    const crc = zlib.crc32(d);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(d.length, 18);
+    local.writeUInt32LE(d.length, 22);
+    local.writeUInt16LE(n.length, 26);
+    const cd = Buffer.alloc(46);
+    cd.writeUInt32LE(0x02014b50, 0);
+    cd.writeUInt16LE(20, 4);
+    cd.writeUInt16LE(20, 6);
+    cd.writeUInt32LE(crc, 16);
+    cd.writeUInt32LE(d.length, 20);
+    cd.writeUInt32LE(d.length, 24);
+    cd.writeUInt16LE(n.length, 28);
+    cd.writeUInt32LE(offset, 42);
+    parts.push(local, n, d);
+    central.push(cd, n);
+    offset += 30 + n.length + d.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(Object.keys(files).length, 8);
+  end.writeUInt16LE(Object.keys(files).length, 10);
+  end.writeUInt32LE(cdSize, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...parts, ...central, end]);
+}
+
+if (!wantLarge) {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const run = (t, rpr = '') => `<w:r>${rpr ? `<w:rPr>${rpr}</w:rPr>` : ''}<w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
+  const para = (inner, style) => `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}${inner}</w:p>`;
+  const cell = (t) => `<w:tc>${para(run(t))}</w:tc>`;
+  const picture = `<w:p><w:r><w:drawing><wp:inline><wp:extent cx="2286000" cy="1714500"/><wp:docPr id="1" name="Picture 1"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="chart.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="2286000" cy="1714500"/></a:xfrm><a:prstGeom prst="rect"/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  const body = [
+    para(run('Quarterly report'), 'Heading1'),
+    para(run('Plain text, ') + run('bold text', '<w:b/>') + run(' and ') + run('italic text', '<w:i/>') + run('.')),
+    para(run('தமிழ்: யாதும் ஊரே யாவரும் கேளிர்')),
+    para(run('हिन्दी: वसुधैव कुटुम्बकम्')),
+    para(run('العربية: مرحبا بالعالم')),
+    `<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>` +
+      [['Item', 'Price'], ['Mango', '40'], ['Banana', '10']].map(([a, b]) => `<w:tr>${cell(a)}${cell(b)}</w:tr>`).join('') +
+      `</w:tbl>`,
+    picture,
+    ...Array.from({ length: 70 }, (_, i) => para(run(`Paragraph ${i + 1}. ${LOREM_SHORT}`))),
+  ].join('');
+  const ns = `xmlns:w="${W}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+  const png = await canvasImage({ w: 240, h: 180, seed: 77, type: 'image/png' });
+  write(
+    'sample.docx',
+    zipStore({
+      '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+      '_rels/.rels': `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+      'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chart.png"/></Relationships>`,
+      'word/document.xml': `<?xml version="1.0" encoding="UTF-8"?><w:document ${ns}><w:body>${body}</w:body></w:document>`,
+      'word/media/chart.png': png,
+    }),
+  );
+  const longLine = 'This line is long enough to wrap: ' + LOREM_SHORT.repeat(3);
+  write('sample.txt', Buffer.from(`Notes from the meeting\n\nதமிழ்: வணக்கம் உலகம்\nहिन्दी: नमस्ते\n\n${longLine}\n\tIndented with a tab\n`, 'utf8'));
 }
 
 // ---- Optional: a PDF just under the 250 MB desktop limit (never committed) -----------------------

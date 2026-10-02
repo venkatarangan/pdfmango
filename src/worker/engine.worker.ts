@@ -25,6 +25,7 @@ const api = {
   unlock: (sourceId: string, password: string, respectRestrictions: boolean) => call((e) => e.unlock(sourceId, password, respectRestrictions)),
   addImage: (bytes: ArrayBuffer) => call((e) => e.addImage(bytes)),
   addBlank: (widthPt: number, heightPt: number) => call((e) => e.addBlank(widthPt, heightPt)),
+  convert: (kind: 'docx' | 'text', bytes: ArrayBuffer) => call((e) => e.convert(kind, bytes)),
   renderThumb: (sourceId: string, srcIndex: number, widthPx: number) =>
     call(async (e) => {
       const bmp = await createImageBitmap(e.renderThumb(sourceId, srcIndex, widthPx));

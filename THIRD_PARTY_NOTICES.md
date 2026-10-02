@@ -12,6 +12,8 @@ PDFMango is licensed under the AGPL-3.0. It uses the open-source software below;
 | [Comlink](https://github.com/GoogleChromeLabs/comlink) | Apache-2.0 | Talking to the background worker |
 | [Workbox](https://github.com/GoogleChrome/workbox) | MIT | Offline support |
 | [Material Symbols](https://github.com/marella/material-symbols) | Apache-2.0 | Icons |
+| [mammoth.js](https://github.com/mwilliamson/mammoth.js) 1.13.0 | BSD-2-Clause | Reading Word (.docx) files; bundles JSZip (MIT), @xmldom/xmldom (MIT), underscore (MIT), lop and dingbat-to-unicode (BSD-2-Clause) |
+| [Noto Sans](https://notofonts.github.io/) Tamil, Devanagari, Telugu, Kannada, Malayalam, Bengali, Gujarati, Gurmukhi, Oriya, Arabic | SIL Open Font License 1.1 ([text](public/fonts/OFL.txt)) | Drawing those scripts in converted Word and text files |
 
 MuPDF includes libraries such as FreeType, HarfBuzz, libjpeg, OpenJPEG and zlib under their own permissive licences; see [mupdf.com/licensing](https://mupdf.com/licensing).
 

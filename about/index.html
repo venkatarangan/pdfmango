@@ -38,8 +38,9 @@
       <h1>About PDFMango</h1>
       <p class="lead">
         PDFMango is a free PDF tool that runs entirely in your browser. It merges PDFs, puts pages in the right order, turns
-        pages that are the wrong way round, deletes the ones you don't need, turns JPG and PNG photos into PDF pages, and makes
-        big files small enough to email. Your files never leave your device: there is no upload, no account and nothing stored.
+        pages that are the wrong way round, deletes the ones you don't need, turns JPG and PNG photos, Word documents and text
+        files into PDF pages, saves pages as pictures, and makes big files small enough to email. Your files never leave your
+        device: there is no upload, no account and nothing stored.
       </p>
       <p><a class="btn btn-filled" href="/">Open PDFMango</a></p>
 
@@ -69,7 +70,7 @@
       <section aria-labelledby="how">
         <h2 id="how">How to use</h2>
         <ol>
-          <li>Drop PDFs or JPG/PNG images onto the page, or press <strong>Choose files</strong>.</li>
+          <li>Drop PDFs, JPG/PNG photos, Word (.docx) or text (.txt) files onto the page, or press <strong>Choose files</strong>.</li>
           <li>Drag pages into the order you want (on a phone, press and hold a page, then drag).</li>
           <li>Select pages to rotate or delete them; with nothing selected, the toolbar acts on every page. <strong>Page tools</strong> (on a phone, <strong>More</strong>) duplicates pages, inserts a blank page, reverses the order and selects odd or even pages.</li>
           <li>Press <strong>Save all pages</strong> and pick a compression level: Lossless keeps everything, Balanced and Strong shrink photos, Scan makes the smallest file.</li>
@@ -79,12 +80,29 @@
         </ol>
       </section>
 
+      <section aria-labelledby="word">
+        <h2 id="word">Word and text files</h2>
+        <p>
+          Word (.docx) and text (.txt) files are turned into A4 pages on your device, so you can merge them with PDFs and photos.
+          Headings, bold and italic, lists, tables and pictures come across; Word's exact fonts, headers, footers, page numbers
+          and text boxes do not, and page breaks can fall in different places. Text stays selectable, though in Tamil and Hindi a
+          vowel sign written before its letter (as in கொ or कि) may copy out of order. For an exact copy, save the file as PDF
+          from Word.
+        </p>
+        <p>
+          Besides English, they can be in Chinese, Japanese and Korean, the main Indian languages (Tamil, Hindi, Marathi, Telugu,
+          Kannada, Malayalam, Bengali, Gujarati, Punjabi and Odia) and Arabic or Urdu. Other languages aren't supported yet: to
+          keep downloads small, PDFMango fetches a language's font only the first time a file needs it. Older Word files (.doc)
+          need to be saved as .docx first.
+        </p>
+      </section>
+
       <section aria-labelledby="privacy">
         <h2 id="privacy">Privacy and analytics</h2>
         <p>
           PDFMango uses Google Analytics to count anonymous visits to the live site. Nothing about your files (their names,
-          contents, pages or sizes) is ever collected or sent anywhere; your PDFs and images are processed entirely inside your
-          browser. Analytics runs only on the live site (never while testing locally), waits until the app has fully loaded, and
+          contents, pages or sizes) is ever collected or sent anywhere; your PDFs, images, Word and text files are processed
+          entirely inside your browser. Analytics runs only on the live site (never while testing locally), waits until the app has fully loaded, and
           skips itself automatically if you are offline or your browser sends a Do Not Track or Global Privacy Control signal.
           Google sets its own first-party cookies to measure traffic; see
           <a href="https://policies.google.com/privacy" rel="noopener">Google's privacy policy</a> for details. PDFMango's full
@@ -92,8 +110,8 @@
         </p>
         <p>
           PDFMango sets no cookies. If you change its Settings, only those choices are saved in your browser (Reset removes
-          them); nothing about your files is ever stored. To work offline, your browser keeps a copy of the app's own code,
-          never your files. When you turn a phone photo into a page, PDFMango also removes
+          them); nothing about your files is ever stored. To work offline, your browser keeps a copy of the app's own code and
+          any language fonts it has fetched, never your files. When you turn a phone photo into a page, PDFMango also removes
           the photo's hidden details, such as its GPS location, without touching the picture itself.
         </p>
       </section>
@@ -116,6 +134,8 @@
         <p>PDFMango is built on:</p>
         <ul class="credits">
           <li><a href="https://mupdf.com/" rel="noopener">MuPDF.js</a> by Artifex Software — the PDF engine (AGPL-3.0)</li>
+          <li><a href="https://github.com/mwilliamson/mammoth.js" rel="noopener">mammoth.js</a> — reading Word files (BSD-2-Clause)</li>
+          <li><a href="https://notofonts.github.io/" rel="noopener">Noto fonts</a> — Indian scripts and Arabic (SIL Open Font License)</li>
           <li><a href="https://svelte.dev/" rel="noopener">Svelte</a> and <a href="https://vite.dev/" rel="noopener">Vite</a> (MIT)</li>
           <li><a href="https://github.com/SortableJS/Sortable" rel="noopener">SortableJS</a> — drag and drop (MIT)</li>
           <li><a href="https://github.com/GoogleChromeLabs/comlink" rel="noopener">Comlink</a> — talking to the background worker (Apache-2.0)</li>

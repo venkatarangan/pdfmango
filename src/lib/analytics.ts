@@ -7,7 +7,7 @@ type Gtag = (...args: unknown[]) => void;
 type AnalyticsWindow = Window & { dataLayer?: unknown[]; gtag?: Gtag };
 
 export type AnalyticsEvent =
-  | { name: 'file_added'; params: { kind: 'pdf' | 'image' } }
+  | { name: 'file_added'; params: { kind: 'pdf' | 'image' | 'docx' | 'text' } }
   | { name: 'export'; params: { level: string } }
   | { name: 'error'; params: { code: string } };
 

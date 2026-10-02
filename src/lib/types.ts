@@ -3,8 +3,11 @@ import type { CompressionPlan } from './compression';
 // Shared types for the main thread and the worker.
 
 export type Rotation = 0 | 90 | 180 | 270;
-/** 'blank' is a page PDFMango made itself (Insert blank page); the engine treats it as a one-page PDF. */
-export type SourceKind = 'pdf' | 'image' | 'blank';
+/**
+ * 'blank' is a page PDFMango made itself (Insert blank page); 'converted' is a Word or text file
+ * turned into PDF pages when it was added. The engine treats both as PDFs.
+ */
+export type SourceKind = 'pdf' | 'image' | 'blank' | 'converted';
 
 export type Source = {
   id: string;
@@ -80,6 +83,7 @@ export type EngineErrorCode =
   | 'not-a-pdf'
   | 'unreadable'
   | 'image-unreadable'
+  | 'word-unreadable'
   | 'out-of-memory'
   | 'cancelled'
   | 'export-failed';

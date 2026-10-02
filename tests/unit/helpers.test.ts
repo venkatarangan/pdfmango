@@ -71,7 +71,16 @@ describe('file type sniffing', () => {
     expect(sniff(bytes('RIFF\0\0\0\0WEBPVP8 '), 'a.webp')).toMatchObject({ kind: 'rejected', message: expect.stringContaining('convert to JPG or PNG first') });
   });
   it('rejects other files with a one-line message', () => {
-    expect(sniff(bytes('PK\x03\x04'), 'notes.docx')).toMatchObject({ kind: 'rejected', message: 'notes.docx: PDFMango opens PDF, JPG and PNG files.' });
+    expect(sniff(bytes('PK\x03\x04'), 'sheet.xlsx')).toMatchObject({ kind: 'rejected', message: 'sheet.xlsx: PDFMango opens PDF, JPG, PNG, Word (.docx) and text (.txt) files.' });
+  });
+  it('accepts Word (.docx) and text (.txt) files, and says how to convert older formats', () => {
+    expect(sniff(bytes('PK\x03\x04'), 'Notes.DOCX').kind).toBe('docx');
+    expect(sniff(bytes('Hello', 0), 'notes.txt').kind).toBe('text');
+    expect(sniff(new Uint8Array([0xff, 0xfe, 0x41, 0]), 'utf16.txt').kind).toBe('text');
+    expect(sniff(bytes('not a zip'), 'fake.docx')).toMatchObject({ kind: 'rejected' });
+    expect(sniff(new Uint8Array([0x41, 0, 0x42]), 'binary.txt')).toMatchObject({ kind: 'rejected' });
+    expect(sniff(bytes('\xd0\xcf\x11\xe0'), 'old.doc')).toMatchObject({ message: expect.stringContaining('save it as .docx first') });
+    expect(sniff(bytes('PK\x03\x04'), 'a.odt')).toMatchObject({ message: expect.stringContaining('save it as .docx or PDF first') });
   });
 });
 

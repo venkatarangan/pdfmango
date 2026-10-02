@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (October 2026)
+
+- Add **Word (.docx)** and **text (.txt)** files: they become A4 pages you can merge, reorder, compress and save like any other. Headings, bold and italic, lists, tables and pictures come across; Word's exact fonts, headers and footers do not.
+- Word and text files can be in the main Indian languages (Tamil, Hindi, Marathi, Telugu, Kannada, Malayalam, Bengali, Gujarati, Punjabi, Odia) and Arabic or Urdu, as well as English, Chinese, Japanese and Korean. Each language's font is fetched only the first time a file needs it, then kept for offline use.
+- Older formats get a clear message: save .doc as .docx; save .rtf, .odt and .pages as .docx or PDF.
+- Fixed: a damaged image now says "This image couldn't be read" instead of the PDF message.
+- Fixed: "Extract as PDF", "Extract as images" and "Save all" were missing a space.
+
 ## 0.2.1 (October 2026)
 
 - Clearer page tools: the ⋮ button is now a labelled **Page tools** menu, and the phone's bottom bar has labels (Add, Left, Right, Delete, More).

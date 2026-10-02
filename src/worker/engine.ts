@@ -15,6 +15,7 @@ import type {
 } from '../lib/types';
 import { exifOrientation, isJpeg, stripJpegMetadata, type Orientation } from './jpeg';
 import { imagePageContent, imagePageLayout, swapsAxes, type ImageGeometry } from './layout';
+import { docxToHtml, htmlToPdf, textToHtml } from './convert';
 import { downsampleImages, makeYielder, pageSizes, readNotices, renderPage, scanDocument } from './pdf-tools';
 
 mupdf.setLog({ warning: () => {}, error: () => {} }); // never echo document details to the console
@@ -125,6 +126,23 @@ export function addImage(bytes: ArrayBuffer): AddImageResult {
     if (img && img !== meta) img.destroy();
     meta?.destroy();
   }
+}
+
+/**
+ * A Word or text file, converted once into PDF pages (A4, 1-inch margins) and then kept as an
+ * ordinary PDF source. Fonts for Indian scripts and Arabic are fetched as the text needs them.
+ */
+export async function convert(kind: 'docx' | 'text', bytes: ArrayBuffer): Promise<OpenResult> {
+  let html: string;
+  try {
+    html = kind === 'docx' ? await docxToHtml(bytes) : textToHtml(new Uint8Array(bytes));
+  } catch (e) {
+    throw toCode(e) === 'out-of-memory' ? e : new EngineError(kind === 'docx' ? 'word-unreadable' : 'unreadable');
+  }
+  const doc = await htmlToPdf(html, makeYielder(() => false));
+  const sourceId = `s${nextId++}`;
+  sources.set(sourceId, { kind: 'pdf', doc, wasEncrypted: false });
+  return finishOpen(sourceId, false);
 }
 
 /** A blank page of the given size (points), held as a one-page PDF so it exports like any other page. */
