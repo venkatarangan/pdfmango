@@ -81,11 +81,11 @@
     <Icon name="startOver" /> Start over
   </button>
   <button type="button" class="btn btn-filled" onclick={ondownload} disabled={empty || busy}>
-    <Icon name="download" /> Download
+    <Icon name="preview" /> Preview
   </button>
 </div>
 
-<!-- Phones: bottom bar of icons, Download at the right end -->
+<!-- Phones: bottom bar of icons, Preview at the right end -->
 <div class="bottombar" role="toolbar" aria-label="Page actions">
   <IconButton icon="add" label="Add files" tipAbove onclick={onadd} disabled={busy} />
   <IconButton icon="rotateLeft" label="Rotate {scope} left" tipAbove onclick={() => rotate(-90)} disabled={empty || busy} />
@@ -107,7 +107,7 @@
     {/if}
   </div>
   <button type="button" class="btn btn-filled download" onclick={ondownload} disabled={empty || busy}>
-    <Icon name="download" /> Download
+    <Icon name="preview" /> Preview
   </button>
 </div>
 

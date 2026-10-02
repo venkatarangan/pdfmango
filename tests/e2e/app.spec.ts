@@ -31,10 +31,10 @@ async function openOutput(download: Download) {
 
 async function download(page: Page, setup?: () => Promise<void>) {
   await page.locator('.toolbar .btn-filled, .bottombar .download').locator('visible=true').click();
-  await expect(page.getByRole('dialog', { name: 'Download PDF' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Your PDF' })).toBeVisible();
   await setup?.();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('dialog[open] button[type=submit]').click()]);
-  await expect(page.getByRole('dialog', { name: 'Download PDF' })).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByRole('dialog', { name: 'Your PDF' })).toBeHidden({ timeout: 30_000 });
   return dl;
 }
 
@@ -122,7 +122,7 @@ test('images: default A4 with no margin; Medium margin and original size from th
   out.doc.destroy();
   out = await openOutput(
     await download(page, async () => {
-      const dlg = page.getByRole('dialog', { name: 'Download PDF' });
+      const dlg = page.getByRole('dialog', { name: 'Your PDF' });
       await dlg.getByText('Original image size').click();
       await dlg.getByText('Medium', { exact: true }).click();
     }),
@@ -135,7 +135,7 @@ test('Balanced compression shrinks the photo-heavy PDF by at least 40%', async (
   await page.goto('/');
   await addFiles(page, ['photo-heavy.pdf'], 12);
   const input = readFileSync(fx('photo-heavy.pdf')).length;
-  const out = await openOutput(await download(page, () => page.getByRole('dialog', { name: 'Download PDF' }).getByText('Balanced', { exact: true }).click()));
+  const out = await openOutput(await download(page, () => page.getByRole('dialog', { name: 'Your PDF' }).getByText('Balanced', { exact: true }).click()));
   expect(out.count).toBe(12);
   expect(out.size).toBeLessThan(input * 0.6);
   out.doc.destroy();
@@ -154,7 +154,7 @@ test('password-protected PDF: wrong password, then the right one', async ({ page
   await dlg.getByRole('button', { name: 'Open' }).click();
   await expect(cards(page)).toHaveCount(3);
   await page.locator('.toolbar .btn-filled').click();
-  await expect(page.getByRole('dialog', { name: 'Download PDF' }).getByText('The downloaded copy will not be password-protected.')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Your PDF' }).getByText('The downloaded copy will not be password-protected.')).toBeVisible();
 });
 
 test('refuses owner-restricted PDFs, HEIC/WebP and other files with one-line messages', async ({ page }) => {
@@ -297,7 +297,7 @@ test('settings: easy choices, remembered in this browser, credit line in the PDF
   await page.reload();
   await addFiles(page, ['tamil-unicode.pdf'], 3);
   const out = await openOutput(
-    await download(page, () => expect(page.getByRole('dialog', { name: 'Download PDF' }).getByText('Shrinks large photos to 200 ppi.')).toBeVisible()),
+    await download(page, () => expect(page.getByRole('dialog', { name: 'Your PDF' }).getByText('Shrinks large photos to 200 ppi.')).toBeVisible()),
   );
   expect(out.doc.getMetaData('info:Producer')).toBe('Made by the test');
   out.doc.destroy();
@@ -313,7 +313,7 @@ test('preview the finished PDF, then download it without rebuilding @phone', asy
   await page.goto('/');
   await addFiles(page, ['tamil-unicode.pdf', 'phone-portrait-exif6.jpg'], 4);
   await page.locator('.toolbar .btn-filled, .bottombar .download').locator('visible=true').click();
-  await page.getByRole('dialog', { name: 'Download PDF' }).getByRole('button', { name: 'Preview' }).click();
+  await page.getByRole('dialog', { name: 'Your PDF' }).getByRole('button', { name: /^Preview/ }).click();
   const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
   await expect(preview).toBeVisible();
   await expect(preview).toContainText('merged.pdf');
@@ -342,7 +342,7 @@ test('Share hands the PDF to the system share sheet where supported', async ({ p
   await page.goto('/');
   await addFiles(page, ['tamil-unicode.pdf'], 3);
   await page.locator('.toolbar .btn-filled').click();
-  await page.getByRole('dialog', { name: 'Download PDF' }).getByRole('button', { name: 'Preview' }).click();
+  await page.getByRole('dialog', { name: 'Your PDF' }).getByRole('button', { name: /^Preview/ }).click();
   const preview = page.getByRole('dialog', { name: 'Preview of the PDF to download' });
   await preview.getByRole('button', { name: 'Share' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { shared?: unknown }).shared)).toEqual([

@@ -32,6 +32,8 @@ Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what 
 
 10. > 1. In the main screen opening text make PDFMango hyperlink to the about page. A separate about pdfmango is not needed. 2. After doing the changes Can you give a preview option so that users can check and then download. Keep it simple. 3. On mobile can you give a share option which can invoke the share card in iPhone or android for sending it to other apps - is it doable.
 
+11. > the download, preview and share buttons flow is not clear from enduser perspective. In the first level where the pages thumbnail are shown, rename the download button to preview. in the popup that comes: rename the preview button as "Preview & Share" and move the button to the top of the popup for easy access in mobile; rename download button below as "Direct Download". Any other suggestions you may have let me know
+
 ## What changed from the plan
 
 | Topic | Plan said | What was built |

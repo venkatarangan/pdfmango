@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ExportJob, type BuiltPdf } from '../lib/actions.svelte';
+  import { ExportJob, canShareFiles, type BuiltPdf } from '../lib/actions.svelte';
   import { levels, MARGINS, planFor } from '../lib/compression';
   import { marginPtFor } from '../lib/settings';
   import { settings } from '../lib/settings.svelte';
@@ -60,11 +60,28 @@
     onpreview(built);
   }
 
+  // Where the browser can't share files (some desktops), the button just says Preview.
+  const previewLabel = canShareFiles() ? 'Preview & Share' : 'Preview';
+
   const pct = $derived(job.progress && job.progress.total > 0 ? Math.round((job.progress.done / job.progress.total) * 100) : 0);
 </script>
 
-<Dialog {open} title="Download PDF" sheet initialFocus="button[type=submit]" dismissable={!job.running} onclose={() => !job.running && onclose()}>
+<Dialog {open} title="Your PDF" sheet initialFocus=".top-action" dismissable={!job.running} onclose={() => !job.running && onclose()}>
   <form id="download-form" class="form" onsubmit={download}>
+    <!-- The main action sits at the top so it is in reach on phones; progress shows here too. -->
+    {#if job.running && job.progress}
+      <div class="progress">
+        <div class="bar" role="progressbar" aria-label="Building the PDF" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+          <div class="fill" style:width="{pct}%"></div>
+        </div>
+        <p class="step" aria-live="polite">{job.progress.step}</p>
+      </div>
+    {:else}
+      <button type="button" class="btn btn-filled top-action" onclick={preview}>
+        <Icon name={previewLabel === 'Preview' ? 'preview' : 'share'} /> {previewLabel}
+      </button>
+    {/if}
+
     <label class="field">
       <span>File name</span>
       <input type="text" bind:value={fileName} disabled={job.running} spellcheck="false" autocomplete="off" enterkeyhint="done" />
@@ -105,15 +122,6 @@
         {#each notices as n (n)}<li><Icon name="info" size={18} /> {n}</li>{/each}
       </ul>
     {/if}
-
-    {#if job.running && job.progress}
-      <div class="progress">
-        <div class="bar" role="progressbar" aria-label="Building the PDF" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-          <div class="fill" style:width="{pct}%"></div>
-        </div>
-        <p class="step" aria-live="polite">{job.progress.step}</p>
-      </div>
-    {/if}
   </form>
 
   {#snippet actions()}
@@ -121,8 +129,7 @@
       <button type="button" class="btn btn-outlined" onclick={() => job.cancel()}>Cancel</button>
     {:else}
       <button type="button" class="btn btn-text" onclick={onclose}>Close</button>
-      <button type="button" class="btn btn-outlined" onclick={preview}><Icon name="preview" /> Preview</button>
-      <button type="submit" form="download-form" class="btn btn-filled"><Icon name="download" /> Download</button>
+      <button type="submit" form="download-form" class="btn btn-outlined"><Icon name="download" /> Direct Download</button>
     {/if}
   {/snippet}
 </Dialog>
@@ -132,6 +139,11 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+  .top-action {
+    width: 100%;
+    min-height: 52px;
+    font-size: 16px;
   }
   .field {
     display: flex;

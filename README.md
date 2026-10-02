@@ -47,8 +47,8 @@ If you change Settings, only your choices are saved in your browser. In the GA4 
 1. Drop PDFs or photos on the page, or press **Choose files**.
 2. Drag pages into order.
 3. Select pages to rotate or delete them.
-4. Press **Download** and pick a compression level.
-5. Press **Preview** to check the result, then **Download** (or **Share** on a phone).
+4. Press **Preview** and pick a compression level.
+5. Press **Preview & Share** to check the result, then **Download** or **Share** it. (**Direct Download** skips the check.)
 
 ## Development
 
