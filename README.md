@@ -37,6 +37,7 @@ A free, open-source PDF tool that runs entirely in your browser. Merge and rearr
 **Everywhere, privately**
 - Keeps Tamil, CJK and all other text selectable. Handles password-protected and damaged PDFs, up to 1,000 pages.
 - Works on Windows, Mac, Linux, Android and iPhone, and offline after the first visit. No upload, account or ads.
+- **Signing and comments:** PDFMango leaves these out on purpose. Since August 2026, Google Chrome on Windows, Mac and Linux can sign and annotate PDFs itself, so open your PDF there.
 
 ## Screenshots
 

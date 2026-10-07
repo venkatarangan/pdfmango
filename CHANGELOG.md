@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Docs: the README and About page now say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
+
 ## 0.3.0 (October 2026)
 
 - Add **Word (.docx)** and **text (.txt)** files: they become A4 pages you can merge, reorder, compress and save like any other. Headings, bold and italic, lists, tables and pictures come across; Word's exact fonts, headers and footers do not.
