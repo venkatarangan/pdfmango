@@ -2,6 +2,7 @@
 // this decides what to split and builds the two halves. No DOM, no worker calls.
 import type { Crop, PageRef, Rotation } from './types';
 import { newUid } from './model';
+import { intersect } from './edits';
 
 /** A rectangle (0..1) on the page as it shows (after its added rotation) -> the same area before the rotation. */
 export function shownToBase(r: Crop, rotation: Rotation): Crop {
@@ -41,10 +42,12 @@ export function splitPage(p: PageRef, at: number, choice: SplitChoice, review = 
   const id = p.spread?.id ?? makeUid();
   const rotation = p.spread?.rotation ?? p.addedRotation;
   const [l, r] = halfCrops(at, choice.overlap, rotation);
+  // A page cropped before it was split: each half keeps its share of that crop.
+  const { trim, ...whole } = base;
   const mk = (crop: Crop, side: 'left' | 'right', uid: string): PageRef => ({
-    ...base,
+    ...whole,
     uid,
-    crop,
+    crop: (trim && intersect(crop, trim)) || crop,
     spread: { id, at, overlap: choice.overlap, side, rotation },
     ...(review ? { review: true } : {}),
   });
@@ -53,10 +56,15 @@ export function splitPage(p: PageRef, at: number, choice: SplitChoice, review = 
   return choice.rightFirst ? [right, left] : [left, right];
 }
 
-/** The page as it was before it was split (keeps its fine rotation and photo corners). */
+/**
+ * The page as it was before it was split (keeps its fine rotation and photo corners). A crop made
+ * on one half described that half only, so it is dropped.
+ */
 export function unsplit(p: PageRef): PageRef {
   const { crop: _c, spread, review: _r, ...rest } = p;
-  return spread ? { ...rest, addedRotation: spread.rotation } : rest;
+  if (!spread) return rest;
+  const { trim: _t, ...whole } = rest;
+  return { ...whole, addedRotation: spread.rotation };
 }
 
 /** Puts the halves of spread `id` back together as one page, where the first half was. */

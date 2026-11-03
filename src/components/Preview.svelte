@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
   import { renderLarge } from '../lib/thumbs';
-  import { batch, setFineRotation, splitUi, straightenPages } from '../lib/actions.svelte';
+  import { batch, cropUi, setFineRotation, splitUi, straightenPages } from '../lib/actions.svelte';
   import { cleanAngle, editOf } from '../lib/edits';
   import { config } from '../pdfmango.config';
   import Icon from './Icon.svelte';
@@ -169,8 +169,13 @@
         style:transform="translate(-50%, -50%) rotate({page.addedRotation}deg)"
       ></canvas>
     </div>
-    {#if config.features.straighten || config.features.fineRotate || canFlatten || canSplit}
+    {#if config.features.straighten || config.features.fineRotate || canFlatten || canSplit || config.features.crop}
       <div class="tools">
+        {#if config.features.crop}
+          <button type="button" class="btn tool" onclick={() => page && (cropUi.uid = page.uid)} disabled={busy}>
+            <Icon name="crop" /> {page.trim ? 'Change crop' : 'Crop'}
+          </button>
+        {/if}
         {#if canSplit}
           <button type="button" class="btn tool" onclick={openSplit} disabled={busy}>
             <Icon name="split" /> {page.spread ? 'Adjust split' : 'Split into two pages'}

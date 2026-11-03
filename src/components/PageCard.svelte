@@ -70,7 +70,7 @@
   const n = $derived(index + 1);
   const name = $derived(source?.name ?? '');
   const label = $derived(
-    `Page ${n}: ${name}${source && source.pageCount > 1 ? `, page ${page.srcIndex + 1}` : ''}${page.addedRotation ? `, rotated ${page.addedRotation}°` : ''}${page.spread ? `, ${page.spread.side} half of a spread` : ''}${page.review ? ', check split' : ''}`,
+    `Page ${n}: ${name}${source && source.pageCount > 1 ? `, page ${page.srcIndex + 1}` : ''}${page.addedRotation ? `, rotated ${page.addedRotation}°` : ''}${page.spread ? `, ${page.spread.side} half of a spread` : ''}${page.review ? ', check split' : ''}${page.trim ? ', cropped' : ''}`,
   );
 
   // Double-tap on touch screens opens the preview (dblclick is unreliable there).

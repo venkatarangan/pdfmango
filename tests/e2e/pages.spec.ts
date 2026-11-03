@@ -176,3 +176,47 @@ test('one page split by hand from the preview, then put back with Don\'t split t
   await editor.getByRole('button', { name: "Don't split this page" }).click();
   await expect(cards(page)).toHaveCount(4);
 });
+
+test('Crop: keep part of a page; Crop selected crops several pages alike; Remove crop takes it off', async ({ page }) => {
+  await addFiles(page, ['spread-text.pdf', 'tilted-scans.pdf'], 5);
+  await cards(page).first().locator('.hit').dblclick();
+  await page.locator('dialog.preview').getByRole('button', { name: 'Crop' }).click();
+  const editor = page.locator('dialog.crop-editor[open]');
+  await expect(editor.getByRole('heading', { name: 'Crop' })).toBeVisible();
+  // Keep the left half: move the right edge to the middle.
+  await editor.getByRole('button', { name: /right edge/ }).focus();
+  for (let i = 0; i < 40; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator('dialog.preview').getByRole('button', { name: 'Change crop' })).toBeVisible();
+  await page.locator('dialog.preview').getByRole('button', { name: 'Close preview' }).click();
+
+  // Crop selected: the three scans at once.
+  for (const i of [2, 3, 4]) await cards(page).nth(i).locator('.hit').click();
+  await page.getByRole('button', { name: 'Page tools' }).click();
+  await page.getByRole('menuitem', { name: 'Crop selected…' }).click();
+  await expect(editor.getByLabel('Crop all 3 selected pages the same way')).toBeChecked();
+  await editor.getByRole('button', { name: /bottom edge/ }).focus();
+  for (let i = 0; i < 10; i++) await page.keyboard.press('Shift+ArrowUp');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await expect(editor).toBeHidden();
+
+  const out = await saveAll(page);
+  expect(textOf(out, 0)).toContain('LEFT PAGE');
+  expect(textOf(out, 0)).not.toContain('RIGHT PAGE');
+  expect(textOf(out, 1)).toContain('RIGHT PAGE'); // the other page is untouched
+  const doc = mupdf.Document.openDocument(out, 'application/pdf');
+  const size = (i: number) => {
+    const p = doc.loadPage(i);
+    const [x0, y0, x1, y1] = p.getBounds();
+    p.destroy();
+    return [x1 - x0, y1 - y0];
+  };
+  for (const i of [2, 3, 4]) expect(size(i)[1]).toBeLessThan(size(1)[1] * 0.95); // shorter than A4
+  doc.destroy();
+
+  await cards(page).first().locator('.hit').dblclick();
+  await page.locator('dialog.preview').getByRole('button', { name: 'Change crop' }).click();
+  await editor.getByRole('button', { name: 'Remove crop' }).click();
+  await expect(page.locator('dialog.preview').getByRole('button', { name: 'Crop', exact: true })).toBeVisible();
+});

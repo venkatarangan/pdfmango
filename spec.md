@@ -485,7 +485,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 
 ## Addendum: page tools added in 0.4.0
 
-> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these four tools came later. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](docs/change-requests/2026-11-v0.4-straighten-and-split.md).
+> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these tools came later. Crop was asked for after the request, in the same release. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](docs/change-requests/2026-11-v0.4-straighten-and-split.md).
 
 ### What they do
 
@@ -493,6 +493,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 - **Fine rotate:** a slider in the page preview, ±10° in 0.1° steps, with a Reset button. It is saved as one undoable edit and exported the same way as Straighten.
 - **Straighten photo:** for photo pages only. The visitor drags four corners onto a photographed sheet, and it becomes a flat, cropped page. The corners start 5% in. On phones a magnifier shows under the finger, and the corners also move with the arrow keys. Apply, Cancel and Remove are offered. The original photo stays in memory, so Cancel, Undo and editing again all work.
 - **Split book spreads:** turns a scan or photo of two facing pages into two pages, for a whole book at once. It can also be done by hand for one page from the page preview.
+- **Crop:** the visitor drags a rectangle (corners, edges, or the whole box) over the page as it shows, and only that part is kept. It can go on one page from the page preview, or on all selected pages at once (Page tools → Crop selected). Remove crop takes it off.
 
 ### How they work
 
@@ -508,6 +509,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 - **Split (the halves):** PDF halves are crops, set with `/MediaBox` and `/CropBox`. Existing rotation is handled. The hidden half stays in the file. The Scan level redraws the pages and removes it. If Scan can't make the file smaller, the safety net saves the Lossless file and the half stays. Photo halves are cut with `Pixmap.warp`.
 - **Split options:** overlap of none, 1% or 2% (each half reaches past the spine), and **Right page first** for right-to-left books.
 - **Undo:** a whole-book split is one undo step.
+- **Crop:** stored apart from the split crop (`trim`, within the half for a split page) and combined with it before it reaches the worker, so it is exported like a split: `/MediaBox` and `/CropBox` on PDF pages, a real cut on photos. It applies after Straighten, Fine rotate and Straighten photo. A page cropped before it is split gives each half its share of the crop; a crop made on a half is dropped if the split is adjusted or undone. The smallest crop is 5% of the page each way.
 
 ### Limits and decisions
 
@@ -522,7 +524,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 
 All in `src/pdfmango.config.ts`. Each tool has an on/off flag under `features`, so any one can be switched off and redeployed if it causes trouble:
 
-- `features.straighten`, `features.fineRotate`, `features.straightenPhoto`, `features.splitSpreads`
+- `features.straighten`, `features.fineRotate`, `features.straightenPhoto`, `features.splitSpreads`, `features.crop`
 - `straighten`: `maxAngle` (15) and `sliderRange` (10)
 - `straightenPhoto`: `maxSidePx` (3000) and `jpegQuality` (90)
 - `split`: `minAspect` (1.2), `middleBand` ([0.4, 0.6]), `minConfidence` (4) and `defaultOverlap` (0.01)
@@ -538,7 +540,7 @@ All in `src/pdfmango.config.ts`. Each tool has an on/off flag under `features`, 
 ### How they are tested
 
 - **Golden rule:** pages with no edits must export exactly as before. `tests/unit/regression.test.ts` exports every existing fixture at every compression level and compares page count, rotation, per-page text and size with `tests/fixtures/regression-baseline.json`. The baseline was recorded from the code before these tools were added. `RECORD_BASELINE=1 npx vitest run tests/unit/regression.test.ts` rewrites it. Ask before doing that.
-- **Unit tests:** `tests/unit/straighten.test.ts`, `straighten-photo.test.ts` and `split.test.ts`.
+- **Unit tests:** `tests/unit/straighten.test.ts`, `straighten-photo.test.ts`, `split.test.ts` and `crop.test.ts`.
 - **Fixtures:** `scripts/make-fixtures-pages.mjs` (`npm run fixtures:pages`) makes tilted scans and facing-page spreads, with the true spine position of each spread known.
 
 ## Sources

@@ -513,6 +513,18 @@ class SplitUi {
 }
 export const splitUi = new SplitUi();
 
+/** The page open in the Crop editor (it can apply the same crop to the other selected pages). */
+class CropUi {
+  uid = $state<string | null>(null);
+}
+export const cropUi = new CropUi();
+
+/** Crop selected…: opens the editor on the first selected page, ready to crop them all alike. */
+export function cropSelected() {
+  const first = app.pages.find((p) => app.selection.has(p.uid));
+  if (first) cropUi.uid = first.uid;
+}
+
 /** Spreads that still carry a "Check split" badge, in page order. */
 export function spreadsToCheck(): string[] {
   const ids: string[] = [];

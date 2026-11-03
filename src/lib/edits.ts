@@ -9,7 +9,8 @@ export type Rect = [x0: number, y0: number, x1: number, y1: number];
 export function editOf(p: PageRef): PageEdit | undefined {
   const e: PageEdit = {};
   if (p.fineRotation) e.fineRotation = p.fineRotation;
-  if (p.crop) e.crop = p.crop;
+  const crop = p.trim ? (p.crop ? within(p.crop, p.trim) : p.trim) : p.crop;
+  if (crop) e.crop = crop;
   if (p.corners) e.corners = p.corners;
   return e.fineRotation || e.crop || e.corners ? e : undefined;
 }
@@ -186,4 +187,49 @@ export function isUsableQuad(q: Quad, widthPx: number, heightPx: number): boolea
   }
   const [w, h] = warpSize(q, widthPx, heightPx, Infinity);
   return w >= 16 && h >= 16;
+}
+
+// ---- Crop ------------------------------------------------------------------------------------------
+
+/** `inner` (0..1 within `outer`) as a rectangle of the whole page. */
+export function within(outer: Crop, inner: Crop): Crop {
+  const w = outer.x1 - outer.x0;
+  const h = outer.y1 - outer.y0;
+  return { x0: outer.x0 + inner.x0 * w, y0: outer.y0 + inner.y0 * h, x1: outer.x0 + inner.x1 * w, y1: outer.y0 + inner.y1 * h };
+}
+
+/** The overlap of two rectangles, or null when they do not overlap. */
+export function intersect(a: Crop, b: Crop): Crop | null {
+  const r = { x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1) };
+  return r.x1 > r.x0 && r.y1 > r.y0 ? r : null;
+}
+
+/** Smallest crop accepted, as a share of the page on each side (anything smaller is a slip). */
+export const MIN_TRIM = 0.05;
+
+const isWhole = (c: Crop) => c.x0 <= 1e-4 && c.y0 <= 1e-4 && c.x1 >= 1 - 1e-4 && c.y1 >= 1 - 1e-4;
+
+/** A crop rounded to 1/10000 and clamped to the page; null when it is the whole page. */
+export function cleanTrim(c: Crop): Crop | null {
+  const r = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 1e4) / 1e4;
+  const t = { x0: r(Math.min(c.x0, c.x1)), y0: r(Math.min(c.y0, c.y1)), x1: r(Math.max(c.x0, c.x1)), y1: r(Math.max(c.y0, c.y1)) };
+  return isWhole(t) ? null : t;
+}
+
+/**
+ * Sets (or, with null, removes) the crop of each page in `uids`; `trim` may depend on the page
+ * (each page's own added rotation). One undoable edit.
+ */
+export function setTrims(pages: readonly PageRef[], uids: ReadonlySet<string>, trim: Crop | null | ((p: PageRef) => Crop | null)): PageRef[] {
+  let changed = false;
+  const out = pages.map((p) => {
+    if (!uids.has(p.uid)) return p;
+    const chosen = typeof trim === 'function' ? trim(p) : trim;
+    const t = chosen ? cleanTrim(chosen) : null;
+    if (editKey({ crop: p.trim }) === editKey({ crop: t ?? undefined })) return p;
+    changed = true;
+    const { trim: _, ...rest } = p;
+    return t ? { ...rest, trim: t } : rest;
+  });
+  return changed ? out : (pages as PageRef[]);
 }

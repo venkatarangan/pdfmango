@@ -31,6 +31,7 @@ export const config = {
     fineRotate: true, // the fine-rotate slider in the page preview
     straightenPhoto: true, // Straighten photo: drag four corners to flatten a photo of a sheet
     splitSpreads: true, // Split book spreads into separate pages
+    crop: true, // Crop: mark an area of a page and keep only that
   },
   straighten: { maxAngle: 15, sliderRange: 10 },
   // Photos flattened with Straighten photo are saved as JPEG at this quality, long side capped.

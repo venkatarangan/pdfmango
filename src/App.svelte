@@ -7,6 +7,8 @@
   import BatchDialog from './components/BatchDialog.svelte';
   import SplitDialog from './components/SplitDialog.svelte';
   import SplitEditor from './components/SplitEditor.svelte';
+  import CropEditor from './components/CropEditor.svelte';
+  import { cropUi } from './lib/actions.svelte';
   import ConfirmDialog from './components/ConfirmDialog.svelte';
   import ResultPreview from './components/ResultPreview.svelte';
   import type { BuiltPdf } from './lib/actions.svelte';
@@ -202,6 +204,7 @@
 <BatchDialog />
 <SplitDialog open={splitOpen} onclose={() => (splitOpen = false)} />
 <SplitEditor />
+<CropEditor uid={cropUi.uid} onclose={() => (cropUi.uid = null)} />
 <Snackbar />
 
 <style>

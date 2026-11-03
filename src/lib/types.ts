@@ -23,6 +23,12 @@ export type PageRef = {
   srcIndex: number;
   addedRotation: Rotation;
 } & PageEdit & {
+  /**
+   * Crop chosen in the Crop editor, 0..1 within the page as it shows before any added rotation
+   * (within the half, for a split page). Kept apart from `crop`, which Split owns; the worker gets
+   * the two combined (see editOf).
+   */
+  trim?: Crop;
   /** Set by Split book spreads when the split needs a look ("Check split" badge). */
   review?: boolean;
   /** The two halves of a split spread share an id, so the split can be adjusted or undone. */

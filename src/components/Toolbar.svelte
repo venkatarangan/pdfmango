@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { insertBlankPage, reviewSplits, straightenPages } from '../lib/actions.svelte';
+  import { cropSelected, insertBlankPage, reviewSplits, straightenPages } from '../lib/actions.svelte';
   import { config } from '../pdfmango.config';
   import { isMobile, readDeviceEnv } from '../lib/limits';
   import { MAX_IMAGES_ON_PHONES } from '../lib/page-images';
@@ -104,6 +104,9 @@
   <button type="button" role="menuitem" onclick={() => menuAction(reverse)} disabled={empty || busy}><Icon name="reverse" />Reverse order of {scope}</button>
   {#if config.features.straighten}
     <button type="button" role="menuitem" onclick={() => menuAction(() => void straightenPages(app.selection))} disabled={empty || busy}><Icon name="straighten" />Straighten {scope}</button>
+  {/if}
+  {#if config.features.crop}
+    <button type="button" role="menuitem" onclick={() => menuAction(cropSelected)} disabled={count === 0 || busy} title={count === 0 ? 'Select the pages to crop first.' : undefined}><Icon name="crop" />Crop selected…{#if count === 0}<span class="why">{' '}(select pages first)</span>{/if}</button>
   {/if}
   {#if config.features.splitSpreads}
     <button type="button" role="menuitem" onclick={() => menuAction(onsplit)} disabled={empty || busy}><Icon name="split" />Split book spreads…</button>
@@ -415,5 +418,8 @@
   }
   .menu button:disabled {
     opacity: 0.4;
+  }
+  .why {
+    font-size: 13px;
   }
 </style>
