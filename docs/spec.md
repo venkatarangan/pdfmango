@@ -485,13 +485,13 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 
 ## Addendum: page tools added in 0.4.0
 
-> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these tools came later. Crop was asked for after the request, in the same release. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](change-requests/2026-11-v0.4-straighten-and-split.md).
+> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these tools came later. The request behind the first four is kept in [change-requests/2026-11-v0.4-straighten-and-split.md](change-requests/2026-11-v0.4-straighten-and-split.md); Crop, the suggested corners, Crop's Auto and the work on phone photos of books were asked for afterwards, in the same release ([change-requests/2026-11-v0.4-follow-ups.md](change-requests/2026-11-v0.4-follow-ups.md)).
 
 ### What they do
 
 - **Straighten:** fixes a page that is tilted by up to 15°. It works on a selection or on all pages, from Page tools or the page preview. The tilt is measured from the lines of text. A page with no clear lines of text is left alone: the tool never "fixes" a page it is unsure about.
 - **Fine rotate:** a slider in the page preview, ±10° in 0.1° steps, with a Reset button. It is saved as one undoable edit and exported the same way as Straighten.
-- **Straighten photo:** for photo pages only. The visitor drags four corners onto a photographed sheet, and it becomes a flat, cropped page. The corners start 5% in. On phones a magnifier shows under the finger, and the corners also move with the arrow keys. Apply, Cancel and Remove are offered. The original photo stays in memory, so Cancel, Undo and editing again all work.
+- **Straighten photo:** for photo pages only. PDFMango places four corners on the edges of the photographed sheet; the visitor checks them, drags any that are off, and it becomes a flat, cropped page. When no sheet stands out, the corners start 5% in. On phones a magnifier shows under the finger, and the corners also move with the arrow keys. Apply, Cancel and Remove are offered. The original photo stays in memory, so Cancel, Undo and editing again all work.
 - **Split book spreads:** turns a scan or photo of two facing pages into two pages, for a whole book at once. It can also be done by hand for one page from the page preview.
 - **Crop:** the visitor drags a rectangle (corners, edges, or the whole box) over the page as it shows, and only that part is kept. **Auto** suggests one: the paper when the page lies on something darker (stepping in from each edge past mostly dark columns and rows), otherwise the ink with a 3% margin. It can go on one page from the page preview, or on all selected pages at once (Page tools → Crop selected). Remove crop takes it off.
 
@@ -538,12 +538,15 @@ All in `src/pdfmango.config.ts`. Each tool has an on/off flag under `features`, 
 - `src/worker/projection.ts`: grey renders, Otsu and the tilt search.
 - `src/worker/spread.ts`: finding the spine.
 - `src/worker/page-edits.ts`: drawing and exporting pages that carry edits.
+- `src/worker/detect.ts`: finding the sheet in a photo (suggested corners) and a page's paper or content (Crop's Auto).
+- `src/components/`: `PhotoEditor`, `SplitEditor` (review and manual split), `SplitDialog`, `CropEditor` and `BatchDialog` (progress and Cancel).
 
 ### How they are tested
 
 - **Golden rule:** pages with no edits must export exactly as before. `tests/unit/regression.test.ts` exports every existing fixture at every compression level and compares page count, rotation, per-page text and size with `tests/fixtures/regression-baseline.json`. The baseline was recorded from the code before these tools were added. `RECORD_BASELINE=1 npx vitest run tests/unit/regression.test.ts` rewrites it. Ask before doing that.
-- **Unit tests:** `tests/unit/straighten.test.ts`, `straighten-photo.test.ts`, `split.test.ts` and `crop.test.ts`.
-- **Fixtures:** `scripts/make-fixtures-pages.mjs` (`npm run fixtures:pages`) makes tilted scans and facing-page spreads, with the true spine position of each spread known.
+- **Unit tests:** `tests/unit/straighten.test.ts`, `straighten-photo.test.ts`, `split.test.ts`, `crop.test.ts` and `detect.test.ts`.
+- **Browser tests:** `tests/e2e/pages.spec.ts` drives each tool in the app and checks the saved PDF (page count, order, text on each page).
+- **Fixtures:** `scripts/make-fixtures-pages.mjs` (`npm run fixtures:pages`) makes tilted scans, a tilted Tamil page, photos of a sheet and of open books, and facing-page spreads (dark fold, white gap, `/Rotate 90`, a 20-page book, real text), with the true tilt, corners and spine position of each known (`tests/fixtures/spreads.json`). It never regenerates the original test files.
 
 ## Sources
 

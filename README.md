@@ -2,7 +2,7 @@
 
 # PDFMango
 
-A free, open-source PDF tool that runs entirely in your browser. Merge and rearrange PDFs, turn photos, Word and text files into PDF, save pages as images, and shrink files to email size. Your files never leave your device.
+A free, open-source PDF tool that runs entirely in your browser. Merge and rearrange PDFs, turn photos, Word and text files into PDF, straighten, split and crop scanned pages, save pages as images, and shrink files to email size. Your files never leave your device.
 
 **Use it at https://pdf.mangoidiots.com** · Generated with Claude Opus 5.5 ([how it was built](docs/prompt-history.md))
 
@@ -25,7 +25,7 @@ A free, open-source PDF tool that runs entirely in your browser. Merge and rearr
 
 **Arrange pages**
 - Reorder (drag, or Alt+Arrow keys), rotate and delete; undo and redo every change.
-- **Page tools:** duplicate pages, insert a blank page, reverse the order, and select odd or even pages.
+- **Page tools:** duplicate pages, insert a blank page, reverse the order, select odd or even pages, and Straighten, Split book spreads or Crop the selected pages (see below).
 - Select pages and a bar appears with **Extract as PDF** and **Extract as images**.
 
 **Fix scans and photos**
@@ -79,6 +79,8 @@ If you change Settings, only your choices are saved in your browser. In the GA4 
 5. Press **Preview & Share** to check the result, then **Download** or **Share** it. (**Direct Download** skips the check.)
 6. To save only some pages, select them and use **Extract as PDF** or **Extract as images** in the bar that appears.
 
+To fix scans and photos, open a page (double-click or double-tap it): the preview has **Crop**, **Split into two pages**, **Straighten**, **Fine rotate** and, for photos, **Straighten photo**. **Page tools** runs Straighten, Split book spreads and Crop on many pages at once.
+
 ## Development
 
 Needs Node.js 22.
@@ -86,12 +88,15 @@ Needs Node.js 22.
 ```bash
 npm ci                # install
 npm run dev           # run locally at http://localhost:5173
-npm test              # unit tests
+npm run check         # type-check (svelte-check)
+npm test              # unit tests, including the real PDF engine on the test files
 npm run build         # build into dist/
-npx playwright test   # browser tests (after npm run build)
+npx playwright test   # browser tests on desktop and phone (after npm run build)
 ```
 
-`npm run fixtures` regenerates the test files; `npm run brand`, `npm run icons` and `npm run screenshots` regenerate the icons and images.
+- **Test files:** `npm run fixtures` makes the original ones (`fixtures:large` makes a 245 MB file); `npm run fixtures:pages` makes the ones for the page tools (tilted scans, book spreads, photos of sheets), with the true tilt, spine and corner positions the tests check against.
+- **Golden rule:** pages with no edits must export exactly as before. `tests/unit/regression.test.ts` compares every original test file's export with a baseline recorded before the page tools were added; don't regenerate the original test files or the baseline.
+- **Images:** `npm run brand`, `npm run icons` and `npm run screenshots` (after `npm run build`) make the logo files, the icon set and the README screenshots.
 
 ## Deployment
 
@@ -106,7 +111,7 @@ One-time setup, already done for pdf.mangoidiots.com:
 
 ## Configuration
 
-Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics ID, size and page limits, image page size and margins, saving pages as images (format, resolutions, the 10-image phone limit), compression settings, the credit line written into each PDF, and whether restricted PDFs are refused. Visitors can override some of these for themselves in the app's **Settings**.
+Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics ID, size and page limits, image page size and margins, saving pages as images (format, resolutions, the 10-image phone limit), compression settings, the credit line written into each PDF, and whether restricted PDFs are refused. The page tools have an on/off switch each (`features`) and their own settings: the largest tilt and the slider range (`straighten`), the size and quality of straightened photos (`straightenPhoto`), and how sure Split must be (`split`). Visitors can override some defaults for themselves in the app's **Settings**.
 
 ## Project structure
 

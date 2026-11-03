@@ -50,3 +50,7 @@ Venkatarangan Thirumalai first worked out the idea with **Claude Cowork**: what 
 | Footer | Included a Source code link | Source code link is in the app bar only |
 | Preview and Share | Not in the plan | Preview the finished PDF, then Download or Share (system share sheet) |
 | Repo files | `SPECIFICATION.md` and `initial-prompt.txt` | Merged into `spec.md` (the original plan) and this file |
+
+## Later versions
+
+This file records the prompts for the first release (0.1.0). For what was asked and built since, see [CHANGELOG.md](../CHANGELOG.md) and the requests in [change-requests/](change-requests/README.md).

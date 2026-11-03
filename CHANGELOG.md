@@ -2,26 +2,23 @@
 
 ## 0.4.0 (November 2026)
 
-- **Straighten:** fixes pages scanned or photographed slightly crooked (up to 15°), from Page tools or the page preview. The tilt is measured from the lines of text, and the page is turned back without redrawing it, so text stays selectable. Pages with no clear lines of text are left alone.
-- **Fine rotate:** a slider in the page preview turns a page by up to 10° either way, in 0.1° steps, with Reset. It is saved the same way as Straighten.
-- **Straighten photo:** drag four corners onto a photographed sheet and it becomes a flat, cropped page. Photo pages only. On phones a magnifier shows under your finger; the corners also move with the arrow keys.
-- **Split book spreads:** turns scans or photos of two facing pages into two pages, for a whole book at once, as one undoable step. It finds the spine (a dark fold or a white gap), straightens a slanted spine first, and leaves covers and single pages alone. Splits it is unsure about get a **Check split** badge and a Review that steps through them. Any page can also be split by hand from the page preview. Choose an overlap (none, 1% or 2%) and Right page first for right-to-left books.
-- **Crop:** mark an area of a page and keep only that, from the page preview, or for all selected pages at once with Page tools → Crop selected. It comes after Straighten, so a straightened scan can lose its crooked edges. Lossless on PDF pages; photos are cut.
-- Each new tool can be switched off in `src/pdfmango.config.ts` (`features`).
-- Straighten photo places the four corners on the edges of the sheet by itself (Find edges runs it again); you check them and press Apply.
-- Crop has an **Auto** button: it finds the paper when the page lies on something darker, or the text, trimming empty margins.
-- A split half (or a cropped page) that is straightened now turns about its own middle, so it no longer slides and loses a strip at its edge.
-- Better on phone photos of books: Split finds a fold that shows only as a thin line or a step in brightness, and a wide page with a fair guess is split and marked Check split instead of being left alone. Straighten accepts small real tilts (about 1°) and measures a page the way it shows after you rotate it.
-- Fixed: hovering the close button in the page preview made the view shake, because its tooltip poked past the edge of the screen. Tooltips on buttons at the right edge now line up inside it.
-- Clearer messages: when Straighten finds no straight lines of text it suggests Fine rotate, or Straighten photo for a photo; when Split finds no spreads it says why (for example, the pages are taller than wide).
-- Fixed: on 320 px phones the app bar and the About page no longer scroll sideways, and the phone's More menu stays on screen.
-- Fixed: the page preview now fits the whole page on any screen, including turned and landscape pages, and its background is solid, so the bars behind no longer show through.
-- Fixed: in the page preview, the Fine rotate slider and Reset button stay inside the screen on phones.
-- Fixed: the download preview no longer scrolls sideways on 320 px phones when the summary line is long.
-- Fixed: on 320 px phones the More menu now sits above the message bar and below the selection bar, and scrolls if it is tall.
-- Changed: Adjust split (from the page preview) is titled "Adjust split" and has Cancel instead of Skip.
-- Changed: the Split texts now say the Scan level removes the hidden half, and that a file Scan cannot make smaller is saved as Lossless, with the half still in it.
-- Docs: the README and About page now say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
+New page tools for scans and photos. Each can be switched off in `src/pdfmango.config.ts` (`features`).
+
+- **Straighten:** fixes pages scanned or photographed slightly crooked (up to 15°), for the selected pages or all of them (Page tools), or one page from the page preview. The tilt is measured from the lines of text, including small tilts of about 1°, and the page is turned back without redrawing it, so text stays selectable. A page with no clear lines of text is left alone, and the message suggests what to try instead.
+- **Fine rotate:** a slider in the page preview turns a page by up to 10° either way, in 0.1° steps, with Reset.
+- **Straighten photo:** for a photo of a sheet taken at an angle. PDFMango places four corners on the edges of the sheet (Find edges looks again); drag any that are off, then Apply, and it becomes a flat, cropped page. Photo pages only. On phones a magnifier shows under your finger; the corners also move with the arrow keys.
+- **Split book spreads:** turns scans or photos of two facing pages into two pages, for a whole book at once, as one undoable step. It finds the spine (a dark fold, a white gap, or the thin line where the pages meet in a photo), straightens a slanted spine first, and leaves covers and single pages alone. Splits it is unsure about get a **Check split** badge and a Review that steps through them; when nothing is split, the message says why. Any page can also be split by hand from the page preview. Choose an overlap (none, 1% or 2%) and Right page first for right-to-left books. On PDF pages the split is a crop, so the hidden half stays in the file unless it is saved with Scan compression.
+- **Crop:** mark an area of a page and keep only that, from the page preview, or for all selected pages at once (Page tools → Crop selected). **Auto** finds it: the paper when the page lies on something darker, or the text, trimming empty margins. It comes after Straighten, so a straightened scan can lose its crooked edges. Lossless on PDF pages; photos are cut.
+- These tools work together: a page can be straightened, split and cropped, and a straightened half or cropped page turns about its own middle. A page you have rotated in PDFMango is measured the way it shows.
+
+Fixes:
+- The page preview fits the whole page on any screen, including turned and landscape pages, and its background is solid, so the bars behind no longer show through.
+- Hovering the close button in the page preview no longer makes the view shake (its tooltip poked past the edge of the screen). Tooltips on buttons at the right edge now line up inside it.
+- On 320 px phones: the app bar and the About page no longer scroll sideways; the More menu stays on screen, above the message bar and below the selection bar; and the download preview fits when its summary line is long.
+
+Docs:
+- The README and About page say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
+- The original plan, the engine spike findings and the prompt history moved into `docs/`, with an index; requests for new work are kept in `docs/change-requests/`. New README screenshots show the page tools on desktop and phone.
 
 ## 0.3.0 (October 2026)
 
