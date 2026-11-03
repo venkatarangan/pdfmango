@@ -1,9 +1,11 @@
 // Thumbnail scheduler: renders visible pages first, keeps a bounded cache of ImageBitmaps,
 // drops requests for pages that scrolled away, and pauses while an export runs.
 import { engine } from './engine';
+import { editKey } from './edits';
+import type { PageEdit } from './types';
 
 type Waiter = (bmp: ImageBitmap) => void;
-type Request = { key: string; sourceId: string; srcIndex: number; waiters: Set<Waiter> };
+type Request = { key: string; sourceId: string; srcIndex: number; edit?: PageEdit; waiters: Set<Waiter> };
 
 const MAX_CACHED = 240; // ~120 MB at 320 x 450 RGBA; visible pages are never evicted
 const CONCURRENCY = 2;
@@ -17,11 +19,17 @@ const visible = new Map<string, number>(); // key -> number of visible cards sho
 let paused = false;
 let generation = 0;
 
-export const keyOf = (sourceId: string, srcIndex: number) => `${sourceId}:${srcIndex}`;
+export const keyOf = (sourceId: string, srcIndex: number, edit?: PageEdit) => {
+  const k = editKey(edit);
+  return k ? `${sourceId}:${srcIndex}#${k}` : `${sourceId}:${srcIndex}`;
+};
 
-/** Asks for a thumbnail; `onReady` runs once it exists. Returns a function that withdraws the request. */
-export function requestThumb(sourceId: string, srcIndex: number, onReady: Waiter): () => void {
-  const key = keyOf(sourceId, srcIndex);
+/**
+ * Asks for a thumbnail; `onReady` runs once it exists. Returns a function that withdraws the request.
+ * An edited page (turned, cut or straightened) gets its own thumbnail, drawn with its edits.
+ */
+export function requestThumb(sourceId: string, srcIndex: number, onReady: Waiter, edit?: PageEdit): () => void {
+  const key = keyOf(sourceId, srcIndex, edit);
   visible.set(key, (visible.get(key) ?? 0) + 1);
   const hit = cache.get(key);
   if (hit) {
@@ -31,7 +39,7 @@ export function requestThumb(sourceId: string, srcIndex: number, onReady: Waiter
     return () => release(key);
   }
   let req = queue.get(key);
-  if (!req) queue.set(key, (req = { key, sourceId, srcIndex, waiters: new Set() }));
+  if (!req) queue.set(key, (req = { key, sourceId, srcIndex, edit, waiters: new Set() }));
   req.waiters.add(onReady);
   pump();
   return () => {
@@ -67,7 +75,7 @@ async function render(req: Request) {
   const gen = generation;
   try {
     const api = await engine();
-    const bmp = await api.renderThumb(req.sourceId, req.srcIndex, thumbWidthPx());
+    const bmp = req.edit ? await api.renderThumb(req.sourceId, req.srcIndex, thumbWidthPx(), req.edit) : await api.renderThumb(req.sourceId, req.srcIndex, thumbWidthPx());
     if (gen !== generation) {
       bmp.close();
       return;
@@ -91,9 +99,9 @@ function evict() {
 }
 
 /** Large one-off render for the preview; not cached. */
-export async function renderLarge(sourceId: string, srcIndex: number, widthPx: number): Promise<ImageBitmap> {
+export async function renderLarge(sourceId: string, srcIndex: number, widthPx: number, edit?: PageEdit): Promise<ImageBitmap> {
   const api = await engine();
-  return api.renderThumb(sourceId, srcIndex, widthPx);
+  return edit ? api.renderThumb(sourceId, srcIndex, widthPx, edit) : api.renderThumb(sourceId, srcIndex, widthPx);
 }
 
 export function pauseThumbs(p: boolean) {

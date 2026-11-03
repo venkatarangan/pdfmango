@@ -25,6 +25,22 @@ export const config = {
     strong: { ppi: 96, jpegQuality: 55, subsetFonts: true },
     scan: { ppi: 110, jpegQuality: 60 },
   },
+  // New page tools. Each can be switched off here and redeployed if it causes trouble.
+  features: {
+    straighten: true, // Straighten: finds and fixes a small tilt (up to ±15°) without re-rendering the page
+    fineRotate: true, // the fine-rotate slider in the page preview
+    straightenPhoto: true, // Straighten photo: drag four corners to flatten a photo of a sheet
+    splitSpreads: true, // Split book spreads into separate pages
+  },
+  straighten: { maxAngle: 15, sliderRange: 10 },
+  // Photos flattened with Straighten photo are saved as JPEG at this quality, long side capped.
+  straightenPhoto: { maxSidePx: 3000, jpegQuality: 90 },
+  split: {
+    minAspect: 1.2, // a spread is at least this much wider than tall
+    middleBand: [0.4, 0.6], // where the spine is looked for, as a share of the width
+    minConfidence: 4, // how far the spine must stand out (z-score); below this the page is flagged for review
+    defaultOverlap: 0.01, // each half reaches this share of the width past the spine
+  },
 } as const;
 
 export type Config = typeof config;

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Straighten:** fixes pages scanned or photographed slightly crooked (up to 15°), from Page tools or the page preview. The tilt is measured from the lines of text, and the page is turned back without redrawing it, so text stays selectable. Pages with no clear lines of text are left alone.
 - Docs: the README and About page now say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
 
 ## 0.3.0 (October 2026)

@@ -4,6 +4,7 @@
   import { plural } from './lib/format';
   import { app } from './lib/state.svelte';
   import { notify } from './lib/notify.svelte';
+  import BatchDialog from './components/BatchDialog.svelte';
   import ConfirmDialog from './components/ConfirmDialog.svelte';
   import ResultPreview from './components/ResultPreview.svelte';
   import type { BuiltPdf } from './lib/actions.svelte';
@@ -194,6 +195,7 @@
     run?.();
   }}
 />
+<BatchDialog />
 <Snackbar />
 
 <style>

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { insertBlankPage } from '../lib/actions.svelte';
+  import { insertBlankPage, straightenPages } from '../lib/actions.svelte';
+  import { config } from '../pdfmango.config';
   import { isMobile, readDeviceEnv } from '../lib/limits';
   import { MAX_IMAGES_ON_PHONES } from '../lib/page-images';
   import { app } from '../lib/state.svelte';
@@ -97,6 +98,9 @@
   <button type="button" role="menuitem" onclick={() => menuAction(duplicate)} disabled={count === 0 || busy}><Icon name="duplicate" />Duplicate selected</button>
   <button type="button" role="menuitem" onclick={() => menuAction(() => void insertBlankPage())} disabled={busy}><Icon name="blankPage" />Insert blank page</button>
   <button type="button" role="menuitem" onclick={() => menuAction(reverse)} disabled={empty || busy}><Icon name="reverse" />Reverse order of {scope}</button>
+  {#if config.features.straighten}
+    <button type="button" role="menuitem" onclick={() => menuAction(() => void straightenPages(app.selection))} disabled={empty || busy}><Icon name="straighten" />Straighten {scope}</button>
+  {/if}
   <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('odd'))} disabled={empty}><Icon name="selectAll" />Select odd pages</button>
   <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('even'))} disabled={app.pages.length < 2}><Icon name="selectAll" />Select even pages</button>
 {/snippet}

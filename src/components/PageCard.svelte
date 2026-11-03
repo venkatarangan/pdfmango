@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { PageRef } from '../lib/types';
+  import { editOf, editedSize } from '../lib/edits';
+  import { config } from '../pdfmango.config';
   import type { SourceInfo } from '../lib/state.svelte';
   import { requestThumb } from '../lib/thumbs';
   import { observeVisible } from '../lib/visible';
@@ -25,7 +27,8 @@
   const FRAME_W = 160;
   const FRAME_H = 226;
 
-  const pageSize = $derived(source?.pageSizes[page.srcIndex] ?? [595, 842]);
+  const edit = $derived(editOf(page));
+  const pageSize = $derived(editedSize(source?.pageSizes[page.srcIndex] ?? [595, 842], edit, config.straightenPhoto.maxSidePx));
   const fit = $derived.by(() => {
     const [pw, ph] = pageSize;
     const [dw, dh] = page.addedRotation % 180 ? [ph, pw] : [pw, ph];
@@ -54,20 +57,15 @@
     loaded = true;
   }
 
+  // Ask for the thumbnail while the card is on screen; an edit (turn, cut) asks for a new one.
+  let onScreen = $state(false);
   function thumbnail(node: HTMLElement) {
-    let withdraw: (() => void) | null = null;
-    const stop = observeVisible(node, (visible) => {
-      if (visible && !withdraw) withdraw = requestThumb(page.sourceId, page.srcIndex, draw);
-      else if (!visible && withdraw) {
-        withdraw();
-        withdraw = null;
-      }
-    });
-    return () => {
-      stop();
-      withdraw?.();
-    };
+    return observeVisible(node, (v) => (onScreen = v));
   }
+  $effect(() => {
+    if (!onScreen) return;
+    return requestThumb(page.sourceId, page.srcIndex, draw, edit);
+  });
 
   const n = $derived(index + 1);
   const name = $derived(source?.name ?? '');

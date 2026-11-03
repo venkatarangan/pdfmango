@@ -9,10 +9,12 @@ import { notify } from './notify.svelte';
 import { app } from './state.svelte';
 import { pauseThumbs, resetThumbs } from './thumbs';
 import { finalFileName, defaultFileName, pageImageName } from './filenames';
-import { resultLine } from './format';
+import { plural, resultLine } from './format';
 import { settings } from './settings.svelte';
 import { zip } from './zip';
-import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportProgress, ImageExportOptions, OpenResult, PageRef, PageSize } from './types';
+import { editOf, setFineRotations, shownSize } from './edits';
+import { config } from '../pdfmango.config';
+import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportPage, ExportProgress, ImageExportOptions, OpenResult, PageRef, PageSize } from './types';
 
 export const MESSAGES: Record<EngineErrorCode, string> = {
   'wrong-password': 'That password is not right.',
@@ -192,10 +194,16 @@ export async function insertBlankPage() {
 
 const A4_PT: PageSize = [595, 842];
 
-/** Size of a page as it shows in the grid, including the rotation added in PDFMango. */
+/** Size of a page as it shows in the grid, including the rotation added in PDFMango (and any cut). */
 function displayedSize(p: PageRef): PageSize {
-  const [w, h] = app.sources.get(p.sourceId)?.pageSizes[p.srcIndex] ?? A4_PT;
-  return p.addedRotation % 180 ? [h, w] : [w, h];
+  return shownSize(app.sources.get(p.sourceId)?.pageSizes[p.srcIndex] ?? A4_PT, editOf(p), p.addedRotation, config.straightenPhoto.maxSidePx);
+}
+
+/** What the worker needs to draw or export a page. Untouched pages carry no `edit`. */
+export function toExportPage(p: PageRef): ExportPage {
+  const { sourceId, srcIndex, addedRotation } = p;
+  const edit = editOf(p);
+  return edit ? { sourceId, srcIndex, addedRotation, edit } : { sourceId, srcIndex, addedRotation };
 }
 
 // ---- Export ---------------------------------------------------------------------------------------------------
@@ -217,7 +225,7 @@ export class ExportJob {
     const name = finalFileName(fileName, defaultFileName(used));
     try {
       const api = await engine();
-      const pages = chosen.map(({ sourceId, srcIndex, addedRotation }) => ({ sourceId, srcIndex, addedRotation }));
+      const pages = chosen.map(toExportPage);
       this.progress = { done: 0, total: pages.length, step: 'Starting' };
       const result = await api.export(
         pages,
@@ -283,8 +291,8 @@ export class ImageJob {
       for (let i = 0; i < chosen.length; i++) {
         if (this.cancelled) throw new Error('cancelled');
         this.progress = { done: i, total: chosen.length, step: `Saving page ${i + 1} of ${chosen.length} as an image` };
-        const { sourceId, srcIndex, addedRotation, uid } = chosen[i];
-        const r = await api.renderImage({ sourceId, srcIndex, addedRotation }, opts);
+        const { uid } = chosen[i];
+        const r = await api.renderImage(toExportPage(chosen[i]), opts);
         const name = pageImageName(base, position.get(uid) ?? i + 1, app.pages.length, r.ext);
         files.push(new File([r.bytes], name, { type: r.ext === 'png' ? 'image/png' : 'image/jpeg' }));
         totalBytes += r.bytes.byteLength;
@@ -385,6 +393,107 @@ export function downloadBlob(blob: Blob, name: string) {
   a.remove();
   // Safari needs the URL to live a moment after the click.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+// ---- Page tools that run in the worker (Straighten, Split) --------------------------------------------
+
+/** A page tool running over many pages, with progress and Cancel (BatchDialog shows it). */
+class BatchJob {
+  title = $state('');
+  progress = $state<ExportProgress | null>(null);
+  running = $state(false);
+  cancelled = false;
+
+  start(title: string, total: number) {
+    this.title = title;
+    this.cancelled = false;
+    this.running = true;
+    this.progress = { done: 0, total, step: '' };
+    app.exporting = true; // keeps other edits out until the job finishes
+  }
+
+  step(done: number, step: string) {
+    if (this.progress) this.progress = { ...this.progress, done, step };
+  }
+
+  finish() {
+    this.running = false;
+    this.progress = null;
+    app.exporting = false;
+  }
+
+  cancel() {
+    this.cancelled = true;
+  }
+}
+export const batch = new BatchJob();
+
+const deg = (a: number) => `${Math.abs(a).toFixed(1).replace(/\.0$/, '')}°`;
+
+/**
+ * Straighten: measures the tilt of each page's text lines in the worker and turns the page back
+ * (losslessly, at export). A page with no clear lines is left alone. One undoable edit.
+ */
+export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?: boolean } = {}): Promise<string> {
+  if (batch.running || app.exporting) return '';
+  const targets = app.pages.filter((p) => uids.size === 0 || uids.has(p.uid));
+  if (targets.length === 0) return '';
+  batch.start(targets.length === 1 ? 'Straightening the page' : `Straightening ${targets.length} pages`, targets.length);
+  const angles = new Map<string, number>();
+  let tilted = 0;
+  let straight = 0;
+  let unsure = 0;
+  let lastAngle = 0;
+  try {
+    const api = await engine();
+    const seen = new Map<string, Awaited<ReturnType<typeof api.detectSkew>>>();
+    for (let i = 0; i < targets.length; i++) {
+      if (batch.cancelled) {
+        notify.announce('Cancelled. No pages were changed.');
+        return '';
+      }
+      const p = targets[i];
+      batch.step(i, `Checking page ${i + 1} of ${targets.length}`);
+      // A duplicated page shares its source page and edits, so it is measured once.
+      const key = `${p.sourceId}:${p.srcIndex}:${JSON.stringify(p.crop ?? null)}:${JSON.stringify(p.corners ?? null)}`;
+      let r = seen.get(key);
+      if (!r) seen.set(key, (r = await api.detectSkew(p.sourceId, p.srcIndex, editOf(p))));
+      if (r.verdict === 'tilted') {
+        tilted++;
+        lastAngle = r.angle;
+        angles.set(p.uid, -r.angle);
+      } else if (r.verdict === 'straight') {
+        straight++;
+        angles.set(p.uid, 0);
+      } else unsure++;
+    }
+  } catch (e) {
+    reportError(errorCode(e));
+    return '';
+  } finally {
+    batch.finish();
+  }
+  app.edit((pages) => setFineRotations(pages, angles));
+  // The page preview shows the result itself (a snackbar would sit behind it).
+  const say = (msg: string) => {
+    if (opts.quiet) notify.announce(msg);
+    else notify.show(msg);
+    return msg;
+  };
+  if (targets.length === 1) {
+    if (tilted) return say(`Straightened by ${deg(lastAngle)}.`);
+    if (straight) return say('Already straight.');
+    return say('No clear lines of text to straighten by, so the page was left as it is.');
+  }
+  const parts = [tilted ? `Straightened ${plural(tilted, 'page')}.` : 'No page needed straightening.'];
+  if (straight) parts.push(`${plural(straight, 'page')} already straight.`);
+  if (unsure) parts.push(`${plural(unsure, 'page')} left as ${unsure === 1 ? 'it was' : 'they were'} (no clear lines of text).`);
+  return say(parts.join(' '));
+}
+
+/** Sets one page's fine rotation (the slider in the page preview). One undoable edit. */
+export function setFineRotation(uid: string, angle: number) {
+  app.edit((pages) => setFineRotations(pages, new Map([[uid, angle]])));
 }
 
 // ---- Start over ---------------------------------------------------------------------------------------------

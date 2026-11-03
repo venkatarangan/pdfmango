@@ -11,12 +11,16 @@ import type {
   ImageExportOptions,
   OpenResult,
   PageImage,
+  PageEdit,
   PageSize,
 } from '../lib/types';
 import { exifOrientation, isJpeg, stripJpegMetadata, type Orientation } from './jpeg';
 import { imagePageContent, imagePageLayout, swapsAxes, type ImageGeometry } from './layout';
 import { docxToHtml, htmlToPdf, textToHtml } from './convert';
 import { downsampleImages, makeYielder, pageSizes, readNotices, renderPage, scanDocument } from './pdf-tools';
+import { derivedImage, drawView, dropDerived, editGraftedPage, needsPixels, pinDerived, turnedImageContent, viewWidth, type View } from './page-edits';
+import { detectSkew as findSkew, toGray, type SkewResult } from './projection';
+import { config } from '../pdfmango.config';
 
 mupdf.setLog({ warning: () => {}, error: () => {} }); // never echo document details to the console
 
@@ -156,7 +160,8 @@ export function addBlank(widthPt: number, heightPt: number): string {
 
 // ---- Thumbnails --------------------------------------------------------------------------------------
 
-export function renderThumb(sourceId: string, srcIndex: number, widthPx: number): ImageData {
+export function renderThumb(sourceId: string, srcIndex: number, widthPx: number, edit?: PageEdit): ImageData {
+  if (edit) return renderEditedThumb(sourceId, srcIndex, widthPx, edit);
   const src = sources.get(sourceId);
   if (!src) throw new EngineError('unreadable');
   const page = src.doc.loadPage(srcIndex);
@@ -182,6 +187,7 @@ const PHOTO_BYTES_PER_PIXEL = 0.4;
 export function renderImage(p: ExportPage, opts: ImageExportOptions): PageImage {
   const src = sources.get(p.sourceId);
   if (!src) throw new EngineError('export-failed');
+  if (p.edit) return encodePageImage(renderEditedImage(p, p.edit, src.kind === 'image', opts), opts);
   const page = src.doc.loadPage(p.srcIndex);
   let pix: mupdf.Pixmap | undefined;
   try {
@@ -223,6 +229,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
   const out = new mupdf.PDFDocument();
   const maps = new Map<string, mupdf.PDFGraftMap>();
   let scanned: mupdf.PDFDocument | undefined;
+  pinDerived(true);
   try {
     // 1–4. Copy pages in output order; one graft map per source so shared resources are copied once.
     for (let i = 0; i < pages.length; i++) {
@@ -236,6 +243,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
       if (src.kind === 'pdf') {
         map.graftPage(-1, src.doc, p.srcIndex);
         const pageObj = out.findPage(out.countPages() - 1);
+        if (p.edit) editGraftedPage(out, out.countPages() - 1, pageObj, p.edit);
         // /Rotate may be inherited from the page tree; graftPage copies it onto the page.
         const base = pageObj.getInheritable('Rotate');
         const original = base.isNumber() ? base.asNumber() : 0;
@@ -243,6 +251,8 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
         // Page-level XMP and editor data can name the author or the software; the output keeps neither.
         pageObj.delete('Metadata');
         pageObj.delete('PieceInfo');
+      } else if (p.edit) {
+        addEditedImagePage(out, maps, p, p.edit, src, opts);
       } else {
         const ref = map.graftObject(src.imageRef);
         const layout = imagePageLayout(src.geometry, opts.imagePageSize, opts.marginPt);
@@ -288,6 +298,7 @@ export async function exportPdf(pages: ExportPage[], opts: ExportOptions, onProg
     scanned?.destroy();
     for (const m of maps.values()) m.destroy();
     out.destroy();
+    pinDerived(false);
     cancelRequested = false;
   }
 }
@@ -317,6 +328,7 @@ function result(bytes: Uint8Array, fellBackToLossless: boolean): ExportResult {
 // ---- Housekeeping ------------------------------------------------------------------------------------
 
 export function dispose(sourceId: string) {
+  dropDerived(sourceId);
   const src = sources.get(sourceId);
   if (!src) return;
   src.doc.destroy();
@@ -324,6 +336,102 @@ export function dispose(sourceId: string) {
 }
 
 export function reset() {
+  dropDerived();
   for (const id of [...sources.keys()]) dispose(id);
   mupdf.emptyStore();
+}
+
+// ---- Edited pages (Straighten, fine rotation, Straighten photo, Split) ------------------------------
+// Only pages that carry edits come here; untouched pages keep the code paths above.
+
+/** The page to draw for `edit`, and the parts of the edit still to apply while drawing. */
+function viewOf(sourceId: string, srcIndex: number, edit: PageEdit): View {
+  const src = sources.get(sourceId);
+  if (!src) throw new EngineError('unreadable');
+  if (src.kind === 'image' && needsPixels(edit)) {
+    const d = derivedImage(sourceId, src, edit);
+    return { doc: d.doc, index: 0, fine: d.bakedRotation ? 0 : (edit.fineRotation ?? 0) };
+  }
+  return { doc: src.doc, index: srcIndex, fine: edit.fineRotation ?? 0, crop: src.kind === 'pdf' ? edit.crop : undefined };
+}
+
+function renderEditedThumb(sourceId: string, srcIndex: number, widthPx: number, edit: PageEdit): ImageData {
+  const view = viewOf(sourceId, srcIndex, edit);
+  const s = widthPx / viewWidth(view);
+  const pix = drawView(view, [s, 0, 0, s, 0, 0], mupdf.ColorSpace.DeviceRGB, true);
+  try {
+    return new ImageData(new Uint8ClampedArray(pix.getPixels()), pix.getWidth(), pix.getHeight());
+  } finally {
+    pix.destroy();
+  }
+}
+
+/** Width the page is drawn at to measure its tilt. */
+const SKEW_RENDER_PX = 1000;
+
+/**
+ * How much the page's text lines are tilted, measured on the page without its current fine
+ * rotation (so Straighten can run again). The caller sets fineRotation = -angle.
+ */
+export function detectSkew(sourceId: string, srcIndex: number, edit?: PageEdit): SkewResult {
+  const view = viewOf(sourceId, srcIndex, { ...edit, fineRotation: undefined });
+  const s = Math.min(4, SKEW_RENDER_PX / viewWidth(view));
+  const pix = drawView(view, [s, 0, 0, s, 0, 0], mupdf.ColorSpace.DeviceGray, false);
+  try {
+    const g = toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents());
+    return findSkew(g, { maxAngle: config.straighten.maxAngle });
+  } finally {
+    pix.destroy();
+  }
+}
+
+function renderEditedImage(p: ExportPage, edit: PageEdit, isPhoto: boolean, opts: ImageExportOptions): mupdf.Pixmap {
+  const view = viewOf(p.sourceId, p.srcIndex, edit);
+  const page = view.doc.loadPage(view.index);
+  let w: number;
+  let h: number;
+  try {
+    const [x0, y0, x1, y1] = page.getBounds();
+    const c = view.crop ?? { x0: 0, y0: 0, x1: 1, y1: 1 };
+    [w, h] = [Math.max(1, (x1 - x0) * (c.x1 - c.x0)), Math.max(1, (y1 - y0) * (c.y1 - c.y0))];
+  } finally {
+    page.destroy();
+  }
+  let scale = isPhoto ? Math.min(1, (A4_LONG_PT * opts.dpi) / 72 / Math.max(w, h)) : opts.dpi / 72;
+  scale = Math.min(scale, Math.sqrt(opts.maxPixels / (w * h)));
+  const after = mupdf.Matrix.concat(mupdf.Matrix.scale(scale, scale), mupdf.Matrix.rotate(p.addedRotation));
+  return drawView(view, after as [number, number, number, number, number, number], mupdf.ColorSpace.DeviceRGB, false);
+}
+
+/** Same encoding as renderImage: PNG, or JPG for photo-like pages under Auto. */
+function encodePageImage(pix: mupdf.Pixmap, opts: ImageExportOptions): PageImage {
+  try {
+    const jpg = () => ({ bytes: pix.asJPEG(opts.jpegQuality, false).slice().buffer as ArrayBuffer, ext: 'jpg' as const });
+    if (opts.format === 'jpg') return jpg();
+    const png = pix.asPNG().slice();
+    if (opts.format === 'auto' && png.length > pix.getWidth() * pix.getHeight() * PHOTO_BYTES_PER_PIXEL) return jpg();
+    return { bytes: png.buffer as ArrayBuffer, ext: 'png' };
+  } finally {
+    pix.destroy();
+  }
+}
+
+/** A photo page with edits: new pixels for corners and crops, a content turn for fine rotation. */
+function addEditedImagePage(out: mupdf.PDFDocument, maps: Map<string, mupdf.PDFGraftMap>, p: ExportPage, edit: PageEdit, src: ImageSource, opts: ExportOptions) {
+  let img: ImageSource = src;
+  let fine = edit.fineRotation ?? 0;
+  let mapKey = p.sourceId;
+  if (needsPixels(edit)) {
+    const d = derivedImage(p.sourceId, src, edit);
+    img = d;
+    mapKey = d.key;
+    if (d.bakedRotation) fine = 0;
+  }
+  let map = maps.get(mapKey);
+  if (!map) maps.set(mapKey, (map = out.newGraftMap()));
+  const ref = map.graftObject(img.imageRef);
+  const layout = imagePageLayout(img.geometry, opts.imagePageSize, opts.marginPt);
+  let content = imagePageContent(img.orient, layout);
+  if (fine) content = turnedImageContent(content, layout.pageW, layout.pageH, fine);
+  out.insertPage(-1, out.addPage([0, 0, layout.pageW, layout.pageH], p.addedRotation, { XObject: { Im0: ref } }, content));
 }

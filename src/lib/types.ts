@@ -22,7 +22,27 @@ export type PageRef = {
   sourceId: string;
   srcIndex: number;
   addedRotation: Rotation;
+} & PageEdit & {
+  /** Set by Split book spreads when the split needs a look ("Check split" badge). */
+  review?: boolean;
+  /** The two halves of a split spread share an id, so the split can be adjusted or undone. */
+  spread?: SpreadInfo;
 };
+
+/** A rectangle in 0..1 page coordinates (x to the right, y down) of the page as drawn before any added rotation. */
+export type Crop = { x0: number; y0: number; x1: number; y1: number };
+export type Point = [x: number, y: number];
+/** Four corners, normalised like Crop, in the order top-left, top-right, bottom-right, bottom-left. */
+export type Quad = [Point, Point, Point, Point];
+
+/**
+ * Optional edits on a page. All absent means an untouched page, which exports exactly as before.
+ * Applied in this order: corners (photo pages), fineRotation (degrees, clockwise), crop, addedRotation.
+ */
+export type PageEdit = { fineRotation?: number; crop?: Crop; corners?: Quad };
+
+/** `at` is the spine position (0..1 across the page as it showed when split); `side` says which half this is. */
+export type SpreadInfo = { id: string; at: number; overlap: number; side: 'left' | 'right'; rotation: Rotation };
 
 /** Size of a source page in points as it displays (original /Rotate already applied). */
 export type PageSize = [width: number, height: number];
@@ -48,7 +68,7 @@ export type OpenResult =
 
 export type AddImageResult = { sourceId: string; widthPx: number; heightPx: number; pageSize: PageSize };
 
-export type ExportPage = { sourceId: string; srcIndex: number; addedRotation: Rotation };
+export type ExportPage = { sourceId: string; srcIndex: number; addedRotation: Rotation; edit?: PageEdit };
 
 export type ExportOptions = {
   plan: CompressionPlan;

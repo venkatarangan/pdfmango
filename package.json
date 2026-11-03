@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "fixtures": "node scripts/make-fixtures.mjs tests/fixtures",
     "fixtures:large": "node scripts/make-fixtures.mjs tests/fixtures/large --large",
+    "fixtures:pages": "node scripts/make-fixtures-pages.mjs",
     "brand": "node scripts/make-brand-assets.mjs",
     "icons": "node scripts/make-icons.mjs",
     "screenshots": "node scripts/make-screenshots.mjs"

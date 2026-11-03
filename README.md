@@ -28,6 +28,9 @@ A free, open-source PDF tool that runs entirely in your browser. Merge and rearr
 - **Page tools:** duplicate pages, insert a blank page, reverse the order, and select odd or even pages.
 - Select pages and a bar appears with **Extract as PDF** and **Extract as images**.
 
+**Fix scans and photos**
+- **Straighten** a page that was scanned or photographed slightly crooked (up to 15°). PDFMango measures the tilt from the lines of text and turns the page back without redrawing it, so text stays selectable. A page with no clear lines of text is left alone.
+
 **Save and share**
 - **Save all pages** as one PDF, with four compression levels: Lossless, Balanced, Strong and Scan.
 - Preview the finished PDF, with its size and whether it's small enough to email, then download it or **share it to other apps** from the phone's share sheet.

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
   import { renderLarge } from '../lib/thumbs';
+  import { batch, straightenPages } from '../lib/actions.svelte';
+  import { editOf } from '../lib/edits';
+  import { config } from '../pdfmango.config';
+  import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
 
   type Props = { uid: string | null; onclose: () => void; onnavigate: (uid: string) => void };
@@ -13,6 +17,21 @@
   const index = $derived(uid ? app.pages.findIndex((p) => p.uid === uid) : -1);
   const page = $derived(index >= 0 ? app.pages[index] : null);
   const source = $derived(page ? app.sources.get(page.sourceId) : undefined);
+  const edit = $derived(page ? editOf(page) : undefined);
+  const busy = $derived(app.exporting || batch.running);
+  // Result of the last tool used here, shown under the page (cleared when the page changes).
+  let status = $state('');
+  let statusFor = '';
+  $effect.pre(() => {
+    if (uid !== statusFor) {
+      statusFor = uid ?? '';
+      status = '';
+    }
+  });
+  async function straighten() {
+    if (!page) return;
+    status = await straightenPages(new Set([page.uid]), { quiet: true });
+  }
 
   $effect(() => {
     if (!el) return;
@@ -27,7 +46,7 @@
     const width = Math.min(1800, Math.round(Math.min(window.innerWidth, 1100) * Math.min(2, devicePixelRatio || 1)));
     let stale = false;
     loading = true;
-    renderLarge(page.sourceId, page.srcIndex, width)
+    renderLarge(page.sourceId, page.srcIndex, width, edit)
       .then((bmp) => {
         if (stale) return bmp.close();
         target.width = bmp.width;
@@ -73,6 +92,16 @@
     <div class="stage" class:loading>
       <canvas bind:this={canvas} class:rotated style:transform="rotate({page.addedRotation}deg)"></canvas>
     </div>
+    {#if config.features.straighten}
+      <div class="tools">
+        <button type="button" class="btn tool" onclick={straighten} disabled={busy}>
+          <Icon name="straighten" /> Straighten
+        </button>
+      </div>
+    {/if}
+    {#if status}
+      <p class="status" role="status">{status}</p>
+    {/if}
     <div class="nav">
       <IconButton icon="chevronLeft" label="Previous page" tipAbove disabled={index <= 0} onclick={() => go(-1)} />
       <IconButton icon="chevronRight" label="Next page" tipAbove disabled={index >= app.pages.length - 1} onclick={() => go(1)} />
@@ -94,7 +123,7 @@
   }
   .preview[open] {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr auto auto auto;
   }
   .preview::backdrop {
     background: transparent;
@@ -109,6 +138,29 @@
   .nav {
     justify-content: center;
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 12px;
+    padding: 4px 12px 0;
+  }
+  .tool {
+    color: #fff;
+    background: rgb(255 255 255 / 0.12);
+    padding: 0 16px 0 12px;
+  }
+  .status {
+    margin: 0;
+    padding: 6px 16px 0;
+    text-align: center;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+  .tool:disabled {
+    opacity: 0.5;
   }
   .top :global(.icon-btn),
   .nav :global(.icon-btn) {
@@ -143,7 +195,7 @@
     transition: transform var(--motion) var(--ease);
   }
   canvas.rotated {
-    max-width: calc(100dvh - 140px);
+    max-width: calc(100dvh - 200px);
     max-height: calc(100vw - 16px);
   }
   .loading canvas {
