@@ -107,6 +107,7 @@ Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics I
 | `public/` | Logo, icons, domain file, and the Noto fonts for Indian scripts and Arabic (`fonts/`, OFL) |
 | `tests/` | Unit tests, browser tests and test files |
 | `scripts/` | Generators for test files, icons and screenshots |
+| `docs/change-requests/` | Requests for future improvements, kept after they are built |
 | `spike/` | The engine checks done before building ([SPIKE.md](SPIKE.md)) |
 
 The original plan is in [spec.md](spec.md).

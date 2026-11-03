@@ -374,10 +374,11 @@ A plain static page in the same look as the app, linked from the app bar and the
 
 ### Other files in the repo
 
-- `SPECIFICATION.md`: this spec, kept current as decisions change
+- `spec.md`: this spec, kept current as decisions change
 - `initial-prompt.txt` and `prompt-history.md`: the prompts used to build PDFMango, as in the solitaire repo, with any private context removed
 - `LICENSE` (AGPL-3.0) and `THIRD_PARTY_NOTICES.md`
 - `CHANGELOG.md`: what changed in each version
+- `docs/change-requests/`: requests for future improvements, kept after they are built
 
 ## Edge cases and known limitations
 
@@ -481,6 +482,64 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 | Analytics | Google Analytics 4 with Venkat's tag; no consent banner; Mudalali-style behaviour and disclosure |
 | UI language | English only; PDFs in any script, including Tamil, are supported |
 | Build model | Claude Code with Claude Opus 5.5 |
+
+## Addendum: page tools added in 0.4.0
+
+> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these four tools came later. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](docs/change-requests/2026-11-v0.4-straighten-and-split.md).
+
+### What they do
+
+- **Straighten:** fixes a page that is tilted by up to 15°. It works on a selection or on all pages, from Page tools or the page preview. The tilt is measured from the lines of text. A page with no clear lines of text is left alone: the tool never "fixes" a page it is unsure about.
+- **Fine rotate:** a slider in the page preview, ±10° in 0.1° steps, with a Reset button. It is saved as one undoable edit and exported the same way as Straighten.
+- **Straighten photo:** for photo pages only. The visitor drags four corners onto a photographed sheet, and it becomes a flat, cropped page. The corners start 5% in. On phones a magnifier shows under the finger, and the corners also move with the arrow keys. Apply, Cancel and Remove are offered. The original photo stays in memory, so Cancel, Undo and editing again all work.
+- **Split book spreads:** turns a scan or photo of two facing pages into two pages, for a whole book at once. It can also be done by hand for one page from the page preview.
+
+### How they work
+
+- **Straighten (detection):** the worker renders the page in grey, turns it black and white (Otsu threshold) and searches for the angle whose row projection profile is sharpest. The search is coarse first (0.5° steps), then fine (0.05° steps). Only thin dark strokes count, so a table or a border round a photographed page does not stop it.
+- **Straighten and Fine rotate (export):** applied without redrawing the page. The page content is wrapped in a turn about the page centre (`q … cm … Q`), so text stays selectable. Pages without edits keep the original export path.
+- **Straighten photo:** flattened in the worker with MuPDF's `Pixmap.warp`. The size comes from the average edge lengths, with the long side capped at 3000 px. The result is a JPEG at quality 90.
+- **Split (finding the spine):** only landscape pages are considered. The worker renders each page as it shows (about 800 px wide) and looks in the middle 40–60% of the width, using column profiles. The spine is either a dark fold shadow or a white gap. How clearly it stands out is scored as a z-score. A spine that slants between the top and bottom thirds is straightened first.
+- **Split (what happens to each page):**
+  - A confident spine splits the page there.
+  - A wide page with no clear spine uses the book's median spine and gets a **Check split** badge. If no page in the batch is confident, those pages are left alone.
+  - Covers and single pages are left alone.
+  - A **Review** editor steps through the unsure splits. It has a draggable line, an overlap choice, and Apply, Skip and Don't split this page. The same editor is used for the per-page split.
+- **Split (the halves):** PDF halves are crops, set with `/MediaBox` and `/CropBox`. Existing rotation is handled. The hidden half stays in the file, except with Scan compression, which redraws the pages. Photo halves are cut with `Pixmap.warp`.
+- **Split options:** overlap of none, 1% or 2% (each half reaches past the spine), and **Right page first** for right-to-left books.
+- **Undo:** a whole-book split is one undo step.
+
+### Limits and decisions
+
+- Tilt: up to 15° for Straighten, 10° for the Fine rotate slider.
+- Straighten photo output: long side 3000 px, JPEG quality 90.
+- Split: a spread is at least 1.2 times wider than tall. The spine is looked for in 40–60% of the width. Minimum confidence is a z-score of 4; below it the page is flagged for review. The default overlap is 1%.
+- Both halves of a spread must carry ink, or the page is not split.
+- A split of 300 pages took about 6 s in desktop Chrome.
+- Signing and comments are left out on purpose, because Chrome on Windows, Mac and Linux can do both. The README and About page say so.
+
+### Configuration
+
+All in `src/pdfmango.config.ts`. Each tool has an on/off flag under `features`, so any one can be switched off and redeployed if it causes trouble:
+
+- `features.straighten`, `features.fineRotate`, `features.straightenPhoto`, `features.splitSpreads`
+- `straighten`: `maxAngle` (15) and `sliderRange` (10)
+- `straightenPhoto`: `maxSidePx` (3000) and `jpegQuality` (90)
+- `split`: `minAspect` (1.2), `middleBand` ([0.4, 0.6]), `minConfidence` (4) and `defaultOverlap` (0.01)
+
+### Code
+
+- `src/lib/edits.ts`: page edits (fine rotation, crop, photo corners) and their matrices, shared by the main thread and the worker.
+- `src/lib/split.ts`: pure page-list logic for splitting.
+- `src/worker/projection.ts`: grey renders, Otsu and the tilt search.
+- `src/worker/spread.ts`: finding the spine.
+- `src/worker/page-edits.ts`: drawing and exporting pages that carry edits.
+
+### How they are tested
+
+- **Golden rule:** pages with no edits must export exactly as before. `tests/unit/regression.test.ts` exports every existing fixture at every compression level and compares page count, rotation, per-page text and size with `tests/fixtures/regression-baseline.json`. The baseline was recorded from the code before these tools were added. `RECORD_BASELINE=1 npx vitest run tests/unit/regression.test.ts` rewrites it. Ask before doing that.
+- **Unit tests:** `tests/unit/straighten.test.ts`, `straighten-photo.test.ts` and `split.test.ts`.
+- **Fixtures:** `scripts/make-fixtures-pages.mjs` (`npm run fixtures:pages`) makes tilted scans and facing-page spreads, with the true spine position of each spread known.
 
 ## Sources
 
