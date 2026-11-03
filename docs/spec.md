@@ -374,8 +374,8 @@ A plain static page in the same look as the app, linked from the app bar and the
 
 ### Other files in the repo
 
-- `spec.md`: this spec, kept current as decisions change
-- `initial-prompt.txt` and `prompt-history.md`: the prompts used to build PDFMango, as in the solitaire repo, with any private context removed
+- `docs/spec.md`: this spec, kept current as decisions change
+- `docs/prompt-history.md` (it replaced `initial-prompt.txt`): the prompts used to build PDFMango, as in the solitaire repo, with any private context removed
 - `LICENSE` (AGPL-3.0) and `THIRD_PARTY_NOTICES.md`
 - `CHANGELOG.md`: what changed in each version
 - `docs/change-requests/`: requests for future improvements, kept after they are built
@@ -485,7 +485,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 
 ## Addendum: page tools added in 0.4.0
 
-> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these tools came later. Crop was asked for after the request, in the same release. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](docs/change-requests/2026-11-v0.4-straighten-and-split.md).
+> This section was added after the original plan. The "Not in v1" list above is the v1 scope; these tools came later. Crop was asked for after the request, in the same release. The request behind them is kept in [docs/change-requests/2026-11-v0.4-straighten-and-split.md](change-requests/2026-11-v0.4-straighten-and-split.md).
 
 ### What they do
 

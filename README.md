@@ -4,7 +4,7 @@
 
 A free, open-source PDF tool that runs entirely in your browser. Merge and rearrange PDFs, turn photos, Word and text files into PDF, save pages as images, and shrink files to email size. Your files never leave your device.
 
-**Use it at https://pdf.mangoidiots.com** · Generated with Claude Opus 5.5 ([how it was built](prompt-history.md))
+**Use it at https://pdf.mangoidiots.com** · Generated with Claude Opus 5.5 ([how it was built](docs/prompt-history.md))
 
 ## Why PDFMango
 
@@ -108,10 +108,10 @@ Defaults live in [`src/pdfmango.config.ts`](src/pdfmango.config.ts): analytics I
 | `public/` | Logo, icons, domain file, and the Noto fonts for Indian scripts and Arabic (`fonts/`, OFL) |
 | `tests/` | Unit tests, browser tests and test files |
 | `scripts/` | Generators for test files, icons and screenshots |
-| `docs/change-requests/` | Requests for future improvements, kept after they are built |
-| `spike/` | The engine checks done before building ([SPIKE.md](SPIKE.md)) |
+| `docs/` | The original plan, the engine spike findings, the prompts used to build PDFMango, change requests and screenshots ([index](docs/README.md)) |
+| `spike/` | The engine checks done before building ([docs/SPIKE.md](docs/SPIKE.md)) |
 
-The original plan is in [spec.md](spec.md).
+The original plan is in [docs/spec.md](docs/spec.md); [docs/](docs/README.md) also holds the engine spike findings, the prompts used to build PDFMango and the change requests.
 
 ## Credits and licence
 
