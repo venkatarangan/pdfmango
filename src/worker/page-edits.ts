@@ -17,7 +17,7 @@ import {
   type Rect,
 } from '../lib/edits';
 import { config } from '../pdfmango.config';
-import type { Crop, PageEdit } from '../lib/types';
+import type { Crop, PageEdit, Point } from '../lib/types';
 import type { ImageGeometry } from './layout';
 import type { Orientation } from './jpeg';
 
@@ -25,7 +25,7 @@ import type { Orientation } from './jpeg';
 export type ImageSourceData = { kind: 'image'; doc: mupdf.PDFDocument; imageRef: mupdf.PDFObject; orient: Orientation; geometry: ImageGeometry };
 
 /** A page to draw, with the edits still to be applied while drawing it. */
-export type View = { doc: mupdf.PDFDocument; index: number; fine: number; crop?: Crop };
+export type View = { doc: mupdf.PDFDocument; index: number; fine: number; pivot?: Point; crop?: Crop };
 
 // ---- Photo pages: corners and crops change the pixels ------------------------------------------------
 
@@ -67,7 +67,7 @@ export const needsPixels = (e: PageEdit | undefined) => !!(e?.corners || e?.crop
  * The original photo is kept untouched, so Cancel, Undo and editing again all work.
  */
 export function derivedImage(sourceId: string, src: ImageSourceData, e: PageEdit): Derived {
-  const key = `${sourceId}|${editKey({ corners: e.corners, crop: e.crop, fineRotation: e.crop ? e.fineRotation : undefined })}`;
+  const key = `${sourceId}|${editKey({ corners: e.corners, crop: e.crop, fineRotation: e.crop ? e.fineRotation : undefined, pivot: e.crop ? e.pivot : undefined })}`;
   const hit = derived.get(key);
   if (hit) {
     derived.delete(key);
@@ -88,7 +88,7 @@ export function derivedImage(sourceId: string, src: ImageSourceData, e: PageEdit
       const [W, H] = [pix.getWidth(), pix.getHeight()];
       const r = cropRect([0, 0, W, H], e.crop);
       // Cut corners as they sit in the turned picture, taken back to the unturned one.
-      const back = e.fineRotation ? rotationAbout([0, 0, W, H], -e.fineRotation) : IDENTITY;
+      const back = e.fineRotation ? rotationAbout([0, 0, W, H], -e.fineRotation, e.pivot) : IDENTITY;
       const quad = [apply(back, r[0], r[1]), apply(back, r[2], r[1]), apply(back, r[2], r[3]), apply(back, r[0], r[3])] as mupdf.Point[];
       const next = pix.warp(quad, Math.max(1, Math.round(r[2] - r[0])), Math.max(1, Math.round(r[3] - r[1])));
       pix.destroy();
@@ -137,7 +137,7 @@ export function drawView(view: View, after: Matrix, cs: mupdf.ColorSpace, alpha:
   try {
     const b = page.getBounds() as Rect;
     const region = view.crop ? cropRect(b, view.crop) : b;
-    const turn = view.fine ? rotationAbout(b, view.fine) : IDENTITY;
+    const turn = view.fine ? rotationAbout(b, view.fine, view.pivot) : IDENTITY;
     const [x0, y0, x1, y1] = transformRect(region, after);
     const bbox: mupdf.Rect = [Math.floor(x0 + 1e-6), Math.floor(y0 + 1e-6), Math.max(Math.floor(x0 + 1e-6) + 1, Math.ceil(x1 - 1e-6)), Math.max(Math.floor(y0 + 1e-6) + 1, Math.ceil(y1 - 1e-6))];
     const pix = new mupdf.Pixmap(cs, bbox, alpha);
@@ -201,7 +201,7 @@ export function editGraftedPage(out: mupdf.PDFDocument, index: number, pageObj: 
   } finally {
     page.destroy();
   }
-  if (e.fineRotation) wrapContents(out, pageObj, cm(userSpaceRotation(T, b, e.fineRotation)));
+  if (e.fineRotation) wrapContents(out, pageObj, cm(userSpaceRotation(T, b, e.fineRotation, e.pivot)));
   if (e.crop) {
     const r = transformRect(cropRect(b, e.crop), invert(T));
     const box = () => {

@@ -7,6 +7,7 @@
   import { shownToBase } from '../lib/split';
   import { notify } from '../lib/notify.svelte';
   import { plural } from '../lib/format';
+  import { engine } from '../lib/engine';
   import type { Crop, PageRef, Rotation } from '../lib/types';
 
   type Props = { uid: string | null; onclose: () => void };
@@ -33,6 +34,7 @@
     if (page && !el.open) {
       box = page.trim ? shownToBase(page.trim, inverse(rot)) : { x0: 0.04, y0: 0.04, x1: 0.96, y1: 0.96 };
       all = true;
+      found = '';
       el.showModal();
     } else if (!page && el.open) el.close();
   });
@@ -157,6 +159,29 @@
     ctx.restore();
   }
 
+  // ---- Auto: find the paper, or the content ----
+  let finding = $state(false);
+  let found = $state('');
+  async function auto() {
+    if (!page || finding) return;
+    const p = page;
+    finding = true;
+    found = '';
+    try {
+      const { trim: _, ...rest } = p;
+      const r = await (await engine()).autoCrop(p.sourceId, p.srcIndex, p.addedRotation, editOf(rest as PageRef));
+      if (page?.uid !== p.uid) return;
+      if (r) {
+        box = r;
+        found = "Box placed round what's on the page. Check it, then press Apply.";
+      } else found = 'Nothing to cut: no border or empty margin was found.';
+    } catch {
+      found = 'Nothing to cut: no border or empty margin was found.';
+    } finally {
+      finding = false;
+    }
+  }
+
   function targets(): Set<string> {
     if (!page) return new Set();
     return all && others > 0 ? new Set(app.selection) : new Set([page.uid]);
@@ -256,7 +281,11 @@
         <label class="check"><input type="checkbox" bind:checked={all} /> Crop all {others + 1} selected pages the same way</label>
       {/if}
       <p class="note">{page.sourceId && app.sources.get(page.sourceId)?.kind === 'image' ? 'The photo is cut to the box.' : 'On PDF pages the part outside stays inside the file, as with any crop; the Scan level of compression removes it.'}</p>
+      {#if found}
+        <p class="note" role="status">{found}</p>
+      {/if}
       <div class="buttons">
+        <button type="button" class="btn btn-text light" onclick={auto} disabled={finding}>Auto</button>
         {#if page.trim}
           <button type="button" class="btn btn-text light" onclick={remove}>Remove crop</button>
         {/if}

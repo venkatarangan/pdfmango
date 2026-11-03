@@ -9,6 +9,7 @@ export type Rect = [x0: number, y0: number, x1: number, y1: number];
 export function editOf(p: PageRef): PageEdit | undefined {
   const e: PageEdit = {};
   if (p.fineRotation) e.fineRotation = p.fineRotation;
+  if (p.fineRotation && p.pivot) e.pivot = p.pivot;
   const crop = p.trim ? (p.crop ? within(p.crop, p.trim) : p.trim) : p.crop;
   if (crop) e.crop = crop;
   if (p.corners) e.corners = p.corners;
@@ -22,6 +23,7 @@ export function editKey(e: PageEdit | undefined): string {
   const parts: string[] = [];
   if (e.corners) parts.push('q' + e.corners.flat().map(r).join(','));
   if (e.fineRotation) parts.push('r' + r(e.fineRotation));
+  if (e.pivot) parts.push('p' + e.pivot.map(r).join(','));
   if (e.crop) parts.push('c' + [e.crop.x0, e.crop.y0, e.crop.x1, e.crop.y1].map(r).join(','));
   return parts.join('|');
 }
@@ -32,12 +34,18 @@ export function cleanAngle(deg: number): number {
   return Math.abs(r) < 0.01 ? 0 : r;
 }
 
-/** Sets (or, for 0, removes) a page's fine rotation. */
+/**
+ * Sets (or, for 0, removes) a page's fine rotation. A cut page (a split half, or a cropped page)
+ * turns about the middle of what shows, so straightening a half does not shift it sideways or
+ * cut off its edges.
+ */
 export function withFineRotation(p: PageRef, deg: number): PageRef {
   const angle = cleanAngle(deg);
   if (angle === (p.fineRotation ?? 0)) return p;
-  const { fineRotation: _, ...rest } = p;
-  return angle ? { ...rest, fineRotation: angle } : rest;
+  const { fineRotation: _, pivot: _p, ...rest } = p;
+  if (!angle) return rest;
+  const cut = p.trim ? (p.crop ? within(p.crop, p.trim) : p.trim) : p.crop;
+  return cut ? { ...rest, fineRotation: angle, pivot: [(cut.x0 + cut.x1) / 2, (cut.y0 + cut.y1) / 2] } : { ...rest, fineRotation: angle };
 }
 
 /** Sets the fine rotation of the pages in `angles` (uid -> degrees); one undoable edit. */
@@ -91,9 +99,9 @@ export function transformRect(r: Rect, m: Matrix): Rect {
  * Turns content clockwise by `deg` (as seen on screen, y down) about the centre of `bounds`,
  * in the page's drawing space (y down, original /Rotate already applied).
  */
-export function rotationAbout(bounds: Rect, deg: number): Matrix {
-  const cx = (bounds[0] + bounds[2]) / 2;
-  const cy = (bounds[1] + bounds[3]) / 2;
+export function rotationAbout(bounds: Rect, deg: number, pivot?: [number, number]): Matrix {
+  const cx = pivot ? bounds[0] + pivot[0] * (bounds[2] - bounds[0]) : (bounds[0] + bounds[2]) / 2;
+  const cy = pivot ? bounds[1] + pivot[1] * (bounds[3] - bounds[1]) : (bounds[1] + bounds[3]) / 2;
   const t = (deg * Math.PI) / 180;
   const [c, s] = [Math.cos(t), Math.sin(t)];
   return [c, s, -s, c, cx - c * cx + s * cy, cy - s * cx - c * cy];
@@ -103,8 +111,8 @@ export function rotationAbout(bounds: Rect, deg: number): Matrix {
  * The same turn expressed in PDF user space, for a `cm` operator wrapped round the page content.
  * `pageTransform` maps user space to drawing space (MuPDF's PDFPage.getTransform()).
  */
-export function userSpaceRotation(pageTransform: Matrix, bounds: Rect, deg: number): Matrix {
-  return concat(concat(pageTransform, rotationAbout(bounds, deg)), invert(pageTransform));
+export function userSpaceRotation(pageTransform: Matrix, bounds: Rect, deg: number, pivot?: [number, number]): Matrix {
+  return concat(concat(pageTransform, rotationAbout(bounds, deg, pivot)), invert(pageTransform));
 }
 
 /** A crop (0..1) as a rectangle in drawing space. */

@@ -5,6 +5,7 @@
   import { renderLarge } from '../lib/thumbs';
   import { DEFAULT_CORNERS, isUsableQuad, setCorners } from '../lib/edits';
   import { notify } from '../lib/notify.svelte';
+  import { engine } from '../lib/engine';
   import type { PageRef, Point, Quad } from '../lib/types';
 
   type Props = { page: PageRef | null; onclose: () => void };
@@ -25,9 +26,35 @@
     if (!el) return;
     if (page && !el.open) {
       quad = (page.corners ?? DEFAULT_CORNERS).map((p) => [...p]) as Quad;
+      found = '';
       el.showModal();
+      // A photo not straightened yet: put the corners on the sheet's edges to start with.
+      if (!page.corners) void findEdges();
     } else if (!page && el.open) el.close();
   });
+
+  // ---- Finding the sheet's edges ----
+  let finding = $state(false);
+  /** What the last search found, shown under the photo. */
+  let found = $state('');
+  async function findEdges() {
+    if (!page || finding) return;
+    const uid = page.uid;
+    finding = true;
+    found = 'Looking for the edges of the sheet…';
+    try {
+      const r = await (await engine()).findSheetCorners(page.sourceId);
+      if (page?.uid !== uid) return;
+      if (r) {
+        quad = r.corners.map((p) => [...p]) as Quad;
+        found = 'Corners placed on the edges of the sheet. Check them, then press Apply.';
+      } else found = "Couldn't find the edges of the sheet. Drag the corners onto it.";
+    } catch {
+      found = "Couldn't find the edges of the sheet. Drag the corners onto it.";
+    } finally {
+      finding = false;
+    }
+  }
 
   // The photo, upright, sharp enough for the screen.
   $effect(() => {
@@ -203,10 +230,14 @@
       ></canvas>
     {/if}
     <div class="bar">
+      {#if found}
+        <p class="found" role="status">{found}</p>
+      {/if}
       {#if !usable}
         <p class="why" id="photo-why">The corners cross over or are too close together. Move them onto the corners of the sheet.</p>
       {/if}
       <div class="buttons">
+        <button type="button" class="btn btn-text light" onclick={findEdges} disabled={finding}>Find edges</button>
         {#if page.corners}
           <button type="button" class="btn btn-text light" onclick={remove}>Remove</button>
         {/if}
@@ -334,6 +365,12 @@
     align-items: center;
     gap: 8px;
     padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .found {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+    text-align: center;
   }
   .why {
     margin: 0;

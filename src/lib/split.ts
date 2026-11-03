@@ -63,7 +63,7 @@ export function splitPage(p: PageRef, at: number, choice: SplitChoice, review = 
 export function unsplit(p: PageRef): PageRef {
   const { crop: _c, spread, review: _r, ...rest } = p;
   if (!spread) return rest;
-  const { trim: _t, ...whole } = rest;
+  const { trim: _t, pivot: _p, ...whole } = rest;
   return { ...whole, addedRotation: spread.rotation };
 }
 

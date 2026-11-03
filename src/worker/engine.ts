@@ -11,6 +11,7 @@ import type {
   ImageExportOptions,
   OpenResult,
   PageImage,
+  Crop,
   PageEdit,
   PageSize,
   Rotation,
@@ -21,6 +22,7 @@ import { docxToHtml, htmlToPdf, textToHtml } from './convert';
 import { downsampleImages, makeYielder, pageSizes, readNotices, renderPage, scanDocument } from './pdf-tools';
 import { derivedImage, drawView, dropDerived, editGraftedPage, needsPixels, pinDerived, turnedImageContent, viewSize, viewWidth, type View } from './page-edits';
 import { analyseSpread as analyseSpreadPixels, type SpreadAnalysis } from './spread';
+import { findContent, findSheet, type SheetResult } from './detect';
 import { detectSkew as findSkew, toGray, type SkewResult } from './projection';
 import { config } from '../pdfmango.config';
 
@@ -354,7 +356,7 @@ function viewOf(sourceId: string, srcIndex: number, edit: PageEdit): View {
     const d = derivedImage(sourceId, src, edit);
     return { doc: d.doc, index: 0, fine: d.bakedRotation ? 0 : (edit.fineRotation ?? 0) };
   }
-  return { doc: src.doc, index: srcIndex, fine: edit.fineRotation ?? 0, crop: src.kind === 'pdf' ? edit.crop : undefined };
+  return { doc: src.doc, index: srcIndex, fine: edit.fineRotation ?? 0, pivot: edit.pivot, crop: src.kind === 'pdf' ? edit.crop : undefined };
 }
 
 function renderEditedThumb(sourceId: string, srcIndex: number, widthPx: number, edit: PageEdit): ImageData {
@@ -458,6 +460,45 @@ export function analyseSpread(sourceId: string, srcIndex: number, addedRotation:
   try {
     const g = toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents());
     return analyseSpreadPixels(g, { minAspect: config.split.minAspect, band: config.split.middleBand, minConfidence: config.split.minConfidence });
+  } finally {
+    pix.destroy();
+  }
+}
+
+// ---- Straighten photo's corners, Crop's Auto ---------------------------------------------------
+
+/** Width the page is drawn at to look for a sheet or for content. */
+const DETECT_RENDER_PX = 700;
+
+/**
+ * Where the sheet's corners probably are in a photo page, 0..1 across the photo as the Straighten
+ * photo editor shows it (upright, no edits); null when no sheet stands out.
+ */
+export function findSheetCorners(sourceId: string): SheetResult {
+  const src = sources.get(sourceId);
+  if (!src || src.kind !== 'image') return null;
+  const view: View = { doc: src.doc, index: 0, fine: 0 };
+  const s = Math.min(1, DETECT_RENDER_PX / Math.max(...viewSize(view)));
+  const pix = drawView(view, [s, 0, 0, s, 0, 0], mupdf.ColorSpace.DeviceGray, false);
+  try {
+    return findSheet(toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents()));
+  } finally {
+    pix.destroy();
+  }
+}
+
+/**
+ * A crop that keeps what matters, 0..1 on the page as the Crop editor shows it (with its edits
+ * except any crop of its own, and its added rotation); null when there is nothing to cut.
+ */
+export function autoCrop(sourceId: string, srcIndex: number, addedRotation: Rotation, edit?: PageEdit): Crop | null {
+  const view = viewOf(sourceId, srcIndex, { ...edit });
+  const [w, h] = viewSize(view);
+  const s = Math.min(4, DETECT_RENDER_PX / Math.max(w, h));
+  const after = mupdf.Matrix.concat(mupdf.Matrix.scale(s, s), mupdf.Matrix.rotate(addedRotation)) as [number, number, number, number, number, number];
+  const pix = drawView(view, after, mupdf.ColorSpace.DeviceGray, false);
+  try {
+    return findContent(toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents()));
   } finally {
     pix.destroy();
   }

@@ -45,7 +45,13 @@ export type Quad = [Point, Point, Point, Point];
  * Optional edits on a page. All absent means an untouched page, which exports exactly as before.
  * Applied in this order: corners (photo pages), fineRotation (degrees, clockwise), crop, addedRotation.
  */
-export type PageEdit = { fineRotation?: number; crop?: Crop; corners?: Quad };
+export type PageEdit = {
+  fineRotation?: number;
+  /** Where the fine rotation turns about, 0..1 of the page before any crop; the page centre when absent. */
+  pivot?: Point;
+  crop?: Crop;
+  corners?: Quad;
+};
 
 /** `at` is the spine position (0..1 across the page as it showed when split); `side` says which half this is. */
 export type SpreadInfo = { id: string; at: number; overlap: number; side: 'left' | 'right'; rotation: Rotation };
