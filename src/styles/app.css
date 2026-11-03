@@ -85,3 +85,30 @@
     padding-top: 56px;
   }
 }
+
+/* Release card on the start screen: one slim line on computers, two or three short lines on phones. */
+.news {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 10px;
+  max-width: min(820px, 100%);
+  padding: 8px 14px;
+  border: 1px solid #ffd59a;
+  border-radius: 12px;
+  background: var(--mango-tint);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+.news-tag {
+  font-weight: 700;
+  color: var(--mango-ink);
+  white-space: nowrap;
+}
+.news a {
+  font-weight: 600;
+  white-space: nowrap;
+}

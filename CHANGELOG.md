@@ -11,6 +11,8 @@ New page tools for scans and photos. Each can be switched off in `src/pdfmango.c
 - **Crop:** mark an area of a page and keep only that, from the page preview, or for all selected pages at once (Page tools → Crop selected). **Auto** finds it: the paper when the page lies on something darker, or the text, trimming empty margins. It comes after Straighten, so a straightened scan can lose its crooked edges. Lossless on PDF pages; photos are cut.
 - These tools work together: a page can be straightened, split and cropped, and a straightened half or cropped page turns about its own middle. A page you have rotated in PDFMango is measured the way it shows.
 
+- For a week after the release, the start screen shows a small card about these tools. It hides itself afterwards; nothing is stored in the browser.
+
 Fixes:
 - The page preview fits the whole page on any screen, including turned and landscape pages, and its background is solid, so the bars behind no longer show through.
 - Hovering the close button in the page preview no longer makes the view shake (its tooltip poked past the edge of the screen). Tooltips on buttons at the right edge now line up inside it.

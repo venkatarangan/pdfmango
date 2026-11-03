@@ -3,6 +3,8 @@
   import { ACCEPT } from './lib/filetypes';
   import { plural } from './lib/format';
   import { app } from './lib/state.svelte';
+  import { announcementVisible, releaseDate } from './lib/announcement';
+  import { config } from './pdfmango.config';
   import { notify } from './lib/notify.svelte';
   import BatchDialog from './components/BatchDialog.svelte';
   import SplitDialog from './components/SplitDialog.svelte';
@@ -130,6 +132,12 @@
 
 {#if !working}
   <div class="empty-shell">
+    {#if announcementVisible(config.announcement)}
+      <aside class="news" aria-label="What's new">
+        <span class="news-tag">New · {releaseDate(config.announcement)}</span>
+        <span class="news-text">{config.announcement.text} <a href={config.announcement.link.href}>{config.announcement.link.label} →</a></span>
+      </aside>
+    {/if}
     <p class="lede"><a href="/about/">PDFMango</a> is a free, open-source PDF tool that works entirely in your browser. Merge and rearrange pages, turn photos, Word and text files into PDF, straighten, split and crop scans, save pages as images, and shrink big files to email size.</p>
     <!-- The whole card opens the picker; the button is the keyboard and screen-reader route. -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

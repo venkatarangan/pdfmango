@@ -33,6 +33,14 @@ export const config = {
     splitSpreads: true, // Split book spreads into separate pages
     crop: true, // Crop: mark an area of a page and keep only that
   },
+  // A small card on the start screen about a new release. It shows from `date` for `days` days,
+  // then hides itself; nothing is stored in the browser. Set `text` to '' for no card.
+  announcement: {
+    date: '2026-11-03',
+    days: 7,
+    text: 'Straighten (deskew), split book spreads and crop scanned pages and photos.',
+    link: { label: 'See how', href: '/about/#how' },
+  },
   straighten: { maxAngle: 15, sliderRange: 10 },
   // Photos flattened with Straighten photo are saved as JPEG at this quality, long side capped.
   straightenPhoto: { maxSidePx: 3000, jpegQuality: 90 },
