@@ -13,12 +13,14 @@ import type {
   PageImage,
   PageEdit,
   PageSize,
+  Rotation,
 } from '../lib/types';
 import { exifOrientation, isJpeg, stripJpegMetadata, type Orientation } from './jpeg';
 import { imagePageContent, imagePageLayout, swapsAxes, type ImageGeometry } from './layout';
 import { docxToHtml, htmlToPdf, textToHtml } from './convert';
 import { downsampleImages, makeYielder, pageSizes, readNotices, renderPage, scanDocument } from './pdf-tools';
-import { derivedImage, drawView, dropDerived, editGraftedPage, needsPixels, pinDerived, turnedImageContent, viewWidth, type View } from './page-edits';
+import { derivedImage, drawView, dropDerived, editGraftedPage, needsPixels, pinDerived, turnedImageContent, viewSize, viewWidth, type View } from './page-edits';
+import { analyseSpread as analyseSpreadPixels, type SpreadAnalysis } from './spread';
 import { detectSkew as findSkew, toGray, type SkewResult } from './projection';
 import { config } from '../pdfmango.config';
 
@@ -434,4 +436,25 @@ function addEditedImagePage(out: mupdf.PDFDocument, maps: Map<string, mupdf.PDFG
   let content = imagePageContent(img.orient, layout);
   if (fine) content = turnedImageContent(content, layout.pageW, layout.pageH, fine);
   out.insertPage(-1, out.addPage([0, 0, layout.pageW, layout.pageH], p.addedRotation, { XObject: { Im0: ref } }, content));
+}
+
+/** Width the page is drawn at to look for a book spine. */
+const SPREAD_RENDER_PX = 800;
+
+/**
+ * Looks for a book spine on a page as it shows (with its fine and added rotation, without any
+ * crop). Positions come back across the page as it shows.
+ */
+export function analyseSpread(sourceId: string, srcIndex: number, addedRotation: Rotation, edit?: PageEdit): SpreadAnalysis {
+  const view = viewOf(sourceId, srcIndex, { ...edit, crop: undefined });
+  const [w, h] = viewSize(view);
+  const s = Math.min(4, SPREAD_RENDER_PX / (addedRotation % 180 ? h : w));
+  const after = mupdf.Matrix.concat(mupdf.Matrix.scale(s, s), mupdf.Matrix.rotate(addedRotation)) as [number, number, number, number, number, number];
+  const pix = drawView(view, after, mupdf.ColorSpace.DeviceGray, false);
+  try {
+    const g = toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents());
+    return analyseSpreadPixels(g, { minAspect: config.split.minAspect, band: config.split.middleBand, minConfidence: config.split.minConfidence });
+  } finally {
+    pix.destroy();
+  }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { insertBlankPage, straightenPages } from '../lib/actions.svelte';
+  import { insertBlankPage, reviewSplits, straightenPages } from '../lib/actions.svelte';
   import { config } from '../pdfmango.config';
   import { isMobile, readDeviceEnv } from '../lib/limits';
   import { MAX_IMAGES_ON_PHONES } from '../lib/page-images';
@@ -18,8 +18,12 @@
     onextract: (mode: 'pdf' | 'images') => void;
     onstartover: () => void;
     ondeleteall: () => void;
+    /** Opens the Split book spreads window. */
+    onsplit: () => void;
   };
-  let { onadd, ondownload, onextract, onstartover, ondeleteall }: Props = $props();
+  let { onadd, ondownload, onextract, onstartover, ondeleteall, onsplit }: Props = $props();
+  // Spreads with a "Check split" badge.
+  const toCheck = $derived(new Set(app.pages.filter((p) => p.review && p.spread).map((p) => p.spread!.id)).size);
 
   const count = $derived(app.selection.size);
   const scope = $derived(count ? 'selected' : 'all');
@@ -100,6 +104,12 @@
   <button type="button" role="menuitem" onclick={() => menuAction(reverse)} disabled={empty || busy}><Icon name="reverse" />Reverse order of {scope}</button>
   {#if config.features.straighten}
     <button type="button" role="menuitem" onclick={() => menuAction(() => void straightenPages(app.selection))} disabled={empty || busy}><Icon name="straighten" />Straighten {scope}</button>
+  {/if}
+  {#if config.features.splitSpreads}
+    <button type="button" role="menuitem" onclick={() => menuAction(onsplit)} disabled={empty || busy}><Icon name="split" />Split book spreads…</button>
+    {#if toCheck > 0}
+      <button type="button" role="menuitem" onclick={() => menuAction(reviewSplits)} disabled={busy}><Icon name="warning" />Check splits ({toCheck})</button>
+    {/if}
   {/if}
   <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('odd'))} disabled={empty}><Icon name="selectAll" />Select odd pages</button>
   <button type="button" role="menuitem" onclick={() => menuAction(() => selectOddEven('even'))} disabled={app.pages.length < 2}><Icon name="selectAll" />Select even pages</button>

@@ -7,6 +7,17 @@
   {#key notify.snack.id}
     <div class="snack" class:error={notify.snack.tone === 'error'}>
       <span class="text">{notify.snack.text}</span>
+      {#if notify.snack.action}
+        <button
+          type="button"
+          class="act"
+          onclick={() => {
+            const run = notify.snack?.action?.run;
+            notify.dismiss();
+            run?.();
+          }}>{notify.snack.action.label}</button
+        >
+      {/if}
       <IconButton icon="close" label="Dismiss" onclick={() => notify.dismiss()} tipAbove />
     </div>
   {/key}
@@ -40,6 +51,21 @@
   }
   .text {
     padding: 8px 0;
+  }
+  .act {
+    flex: none;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mango);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .act:hover {
+    background: rgb(255 255 255 / 0.08);
   }
   .snack :global(.icon-btn) {
     color: #fff;

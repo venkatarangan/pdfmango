@@ -5,6 +5,8 @@
   import { app } from './lib/state.svelte';
   import { notify } from './lib/notify.svelte';
   import BatchDialog from './components/BatchDialog.svelte';
+  import SplitDialog from './components/SplitDialog.svelte';
+  import SplitEditor from './components/SplitEditor.svelte';
   import ConfirmDialog from './components/ConfirmDialog.svelte';
   import ResultPreview from './components/ResultPreview.svelte';
   import type { BuiltPdf } from './lib/actions.svelte';
@@ -28,6 +30,7 @@
   }
   let previewUid = $state<string | null>(null);
   let settingsOpen = $state(false);
+  let splitOpen = $state(false);
   let built = $state.raw<BuiltPdf | null>(null);
 
   // The gear button lives in the static app bar (index.html), outside this component.
@@ -145,6 +148,7 @@
     onextract={(mode) => openExport('selected', mode)}
     onstartover={askStartOver}
     ondeleteall={askDeleteAll}
+    onsplit={() => (splitOpen = true)}
   />
   {#if app.loading > 0}
     <div class="loading" role="status">
@@ -196,6 +200,8 @@
   }}
 />
 <BatchDialog />
+<SplitDialog open={splitOpen} onclose={() => (splitOpen = false)} />
+<SplitEditor />
 <Snackbar />
 
 <style>

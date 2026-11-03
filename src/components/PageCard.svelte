@@ -70,7 +70,7 @@
   const n = $derived(index + 1);
   const name = $derived(source?.name ?? '');
   const label = $derived(
-    `Page ${n}: ${name}${source && source.pageCount > 1 ? `, page ${page.srcIndex + 1}` : ''}${page.addedRotation ? `, rotated ${page.addedRotation}°` : ''}`,
+    `Page ${n}: ${name}${source && source.pageCount > 1 ? `, page ${page.srcIndex + 1}` : ''}${page.addedRotation ? `, rotated ${page.addedRotation}°` : ''}${page.spread ? `, ${page.spread.side} half of a spread` : ''}${page.review ? ', check split' : ''}`,
   );
 
   // Double-tap on touch screens opens the preview (dblclick is unreliable there).
@@ -110,6 +110,9 @@
     </button>
     {#if selected}
       <span class="badge" aria-hidden="true"><Icon name="check" size={18} /></span>
+    {/if}
+    {#if page.review}
+      <span class="review">Check split</span>
     {/if}
     <div class="actions">
       <IconButton icon="rotateLeft" label="Rotate page {n} left" tabindex={active ? 0 : -1} onclick={() => onrotate(-90)} />
@@ -202,6 +205,19 @@
     background: var(--mango);
     color: var(--on-mango);
     box-shadow: var(--elev-1);
+    pointer-events: none;
+  }
+  .review {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #fff3e0;
+    color: #8a4b00;
+    box-shadow: 0 0 0 1px #ffb74d;
+    font-size: 12px;
+    font-weight: 600;
     pointer-events: none;
   }
   .actions {

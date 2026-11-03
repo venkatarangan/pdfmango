@@ -43,30 +43,51 @@ export function otsu(g: Gray): number {
   return threshold;
 }
 
-/** Dark (ink) pixels as coordinates about the centre of the page, thinned to at most `max`. */
+/**
+ * Dark (ink) pixels as coordinates about the centre of the page, thinned to at most `max`. Only
+ * pixels in short dark runs count (strokes of text, rules, edges): a large dark area, such as the
+ * table round a photographed page, would otherwise drown the lines of text.
+ */
 export function inkPoints(g: Gray, threshold: number, max = 120_000) {
+  const { width: w, height: h, data } = g;
+  const maxRun = Math.max(4, Math.round(w * 0.015));
+  const keep = new Uint8Array(w * h);
   let n = 0;
-  for (let i = 0; i < g.data.length; i++) if (g.data[i] <= threshold) n++;
+  let dark = 0;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; ) {
+      if (data[row + x] > threshold) {
+        x++;
+        continue;
+      }
+      let e = x;
+      while (e < w && data[row + e] <= threshold) e++;
+      dark += e - x;
+      if (e - x <= maxRun) {
+        keep.fill(1, row + x, row + e);
+        n += e - x;
+      }
+      x = e;
+    }
+  }
   const step = Math.max(1, Math.ceil(n / max));
   const count = Math.floor(n / step);
   const xs = new Float32Array(count);
   const ys = new Float32Array(count);
-  const cx = g.width / 2;
-  const cy = g.height / 2;
+  const cx = w / 2;
+  const cy = h / 2;
   let k = 0;
   let seen = 0;
-  for (let y = 0; y < g.height && k < count; y++) {
-    const row = y * g.width;
-    for (let x = 0; x < g.width; x++) {
-      if (g.data[row + x] > threshold) continue;
-      if (seen++ % step === 0 && k < count) {
-        xs[k] = x - cx;
-        ys[k] = y - cy;
-        k++;
-      }
+  for (let i = 0; i < keep.length && k < count; i++) {
+    if (!keep[i]) continue;
+    if (seen++ % step === 0) {
+      xs[k] = (i % w) - cx;
+      ys[k] = Math.floor(i / w) - cy;
+      k++;
     }
   }
-  return { xs, ys, count: k, inkShare: n / g.data.length };
+  return { xs, ys, count: k, inkShare: n / data.length, darkShare: dark / data.length };
 }
 
 /**
@@ -112,9 +133,9 @@ export function detectSkew(g: Gray, opts: SkewOptions = {}): SkewResult {
   const { maxAngle = 15, minGain = 1.08, minPeak = 1.25 } = opts;
   const unsure: SkewResult = { angle: 0, verdict: 'unsure', gain: 1 };
   const threshold = otsu(g);
-  const { xs, ys, count, inkShare } = inkPoints(g, threshold);
-  // A page with almost no ink, or mostly dark (a photo), has no lines to straighten by.
-  if (count < 500 || inkShare < 0.002 || inkShare > 0.35) return unsure;
+  const { xs, ys, count, inkShare, darkShare } = inkPoints(g, threshold);
+  // A page with almost no ink, or mostly dark or busy (a photo), has no lines to straighten by.
+  if (count < 500 || inkShare < 0.002 || inkShare > 0.35 || darkShare > 0.7) return unsure;
   const half = Math.ceil(Math.hypot(g.width, g.height) / 2) + 2;
   const bins = new Int32Array(half * 2 + 1);
   const score = (a: number) => rowScore(xs, ys, count, a, bins, half);

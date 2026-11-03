@@ -1,7 +1,7 @@
 // Worker entry. Registers the Comlink API immediately; the engine (and its 10 MB WASM) loads on
 // first use, so no message can arrive before a listener exists.
 import * as Comlink from 'comlink';
-import type { ExportOptions, ExportPage, ExportProgress, ImageExportOptions, PageEdit } from '../lib/types';
+import type { ExportOptions, ExportPage, ExportProgress, ImageExportOptions, PageEdit, Rotation } from '../lib/types';
 
 const engine = import('./engine');
 
@@ -42,6 +42,7 @@ const api = {
       return Comlink.transfer(r, [r.bytes]);
     }),
   detectSkew: (sourceId: string, srcIndex: number, edit?: PageEdit) => call((e) => e.detectSkew(sourceId, srcIndex, edit)),
+  analyseSpread: (sourceId: string, srcIndex: number, addedRotation: Rotation, edit?: PageEdit) => call((e) => e.analyseSpread(sourceId, srcIndex, addedRotation, edit)),
   cancel: () => call((e) => e.cancel()),
   dispose: (sourceId: string) => call((e) => e.dispose(sourceId)),
   reset: () => call((e) => e.reset()),

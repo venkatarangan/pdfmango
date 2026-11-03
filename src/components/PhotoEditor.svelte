@@ -157,7 +157,7 @@
 
 <dialog
   bind:this={el}
-  class="editor"
+  class="editor photo-editor"
   aria-labelledby="photo-title"
   oncancel={(e) => {
     e.preventDefault();

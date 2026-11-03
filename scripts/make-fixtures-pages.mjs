@@ -161,4 +161,160 @@ function homography(from, to) {
   sheet.destroy();
 }
 
+// ---- Split book spreads -----------------------------------------------------------------------------
+// Two facing pages scanned as one landscape image. The true spine position of every spread (as a
+// share of the width, as the page shows) goes into spreads.json for the tests.
+const truth = {};
+const DPI = 80;
+
+/** One text-50 page as greyscale pixels. */
+function grayPage(i) {
+  const page = text50.loadPage(i);
+  const pix = page.toPixmap(mupdf.Matrix.scale(DPI / 72, DPI / 72), mupdf.ColorSpace.DeviceGray, false, true);
+  page.destroy();
+  const out = { w: pix.getWidth(), h: pix.getHeight(), px: new Uint8Array(pix.getPixels()) };
+  pix.destroy();
+  return out;
+}
+
+/**
+ * Two pages side by side. `gutter`: 'shadow' (dark spine), 'gap' (white strip) or 'weak' (inner
+ * margins cut away, no shadow: the spine barely shows). `trim` shifts the spine by cutting the
+ * left page's outer edge. Returns grey pixels and the spine position.
+ */
+function spread(li, ri, { gutter = 'shadow', trim = 0 } = {}) {
+  const L = grayPage(li), R = grayPage(ri);
+  const inner = gutter === 'weak' ? Math.round(L.w * 0.1) : 0; // cut the inner margins away
+  const gap = gutter === 'gap' ? 24 : 0;
+  const lw = L.w - trim - inner, rw = R.w - inner;
+  const w = lw + gap + rw, h = L.h;
+  const px = new Uint8Array(w * h).fill(255);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < lw; x++) px[y * w + x] = L.px[y * L.w + x + trim];
+    for (let x = 0; x < rw; x++) px[y * w + lw + gap + x] = R.px[y * R.w + x + inner];
+  }
+  const spine = lw + gap / 2;
+  if (gutter === 'shadow') {
+    const sigma = w * 0.012;
+    for (let x = 0; x < w; x++) {
+      const k = 1 - 0.6 * Math.exp(-(((x - spine) / sigma) ** 2));
+      if (k > 0.995) continue;
+      for (let y = 0; y < h; y++) px[y * w + x] = Math.round(px[y * w + x] * k);
+    }
+  }
+  return { w, h, px, at: spine / w };
+}
+
+function grayJpeg({ w, h, px }, quality = 75) {
+  const pix = new mupdf.Pixmap(mupdf.ColorSpace.DeviceGray, [0, 0, w, h], false);
+  pix.getPixels().set(px);
+  const jpeg = pix.asJPEG(quality, false).slice();
+  pix.destroy();
+  return jpeg;
+}
+
+/** The same pixels turned a quarter clockwise (stored that way, shown upright by /Rotate 90). */
+function turnedLeft({ w, h, px }) {
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[(w - 1 - x) * h + y] = px[y * w + x];
+  return { w: h, h: w, px: out };
+}
+
+const pt = (n) => (n * 72) / DPI;
+const spreadPdf = (name, items) => {
+  write(name, imagePdf(items.map((it) => ({ jpeg: grayJpeg(it.img), w: pt(it.img.w), h: pt(it.img.h), rotate: it.rotate ?? 0 }))));
+  truth[name] = items.map((it) => it.at ?? null);
+};
+
+{
+  const dark = spread(6, 7);
+  spreadPdf('spread-scan.pdf', [{ img: dark, at: dark.at }]);
+  const gap = spread(8, 9, { gutter: 'gap', trim: 30 });
+  spreadPdf('spread-white-gap.pdf', [{ img: gap, at: gap.at }]);
+  // Stored sideways and shown upright by /Rotate 90, as some scanners do.
+  const side = spread(10, 11, { trim: 50 });
+  spreadPdf('spread-rotate90.pdf', [{ img: turnedLeft(side), rotate: 90, at: side.at }]);
+  write('spread.jpg', grayJpeg(dark, 85));
+  truth['spread.jpg'] = [dark.at];
+}
+
+// A 20-page book: cover, spreads with a dark spine, a single page, spreads with a white gap, one
+// spread whose spine barely shows, one more spread, and a back cover.
+{
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const single = (i) => {
+    const g = grayPage(i);
+    return { img: g, at: null };
+  };
+  const cover = grayPage(12);
+  for (let y = Math.round(cover.h * 0.45); y < cover.h * 0.85; y++) for (let x = Math.round(cover.w * 0.15); x < cover.w * 0.85; x++) cover.px[y * cover.w + x] = 70 + Math.round(rnd() * 60);
+  const items = [{ img: cover, at: null }];
+  let n = 13;
+  const add = (gutter) => {
+    const s = spread(n, n + 1, { gutter, trim: Math.round(rnd() * 60) });
+    n += 2;
+    items.push({ img: s, at: s.at });
+  };
+  for (let i = 0; i < 8; i++) add('shadow');
+  items.push(single(n++));
+  for (let i = 0; i < 7; i++) add('gap');
+  add('weak');
+  add('shadow');
+  items.push(single(n++));
+  spreadPdf('book-20.pdf', items);
+}
+
+// A phone photo of an open book: colour, on a table, turned 2.5° so the spine slants.
+{
+  const s = spread(2, 3);
+  const W = Math.round(s.w * 1.12), H = Math.round(s.h * 1.16);
+  const photo = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, W, H], false);
+  const out = photo.getPixels();
+  const t = (2.5 * Math.PI) / 180, c = Math.cos(t), sn = Math.sin(t);
+  const [cx, cy] = [W / 2, H / 2];
+  let seed = 5;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      // Back from the photo to the spread: turn by -2.5° about the centre.
+      const dx = x - cx, dy = y - cy;
+      const u = Math.round(c * dx + sn * dy + s.w / 2), v = Math.round(-sn * dx + c * dy + s.h / 2);
+      const o = (y * W + x) * 3;
+      const n = (rnd() - 0.5) * 14;
+      if (u >= 0 && v >= 0 && u < s.w && v < s.h) {
+        const g = s.px[v * s.w + u];
+        out[o] = Math.min(255, g * 0.97 + n); out[o + 1] = Math.min(255, g * 0.93 + n); out[o + 2] = Math.min(255, g * 0.85 + n);
+      } else { out[o] = 80 + n; out[o + 1] = 58 + n; out[o + 2] = 40 + n; }
+    }
+  }
+  write('spread-photo-slanted.jpg', photo.asJPEG(85, false).slice());
+  photo.destroy();
+  truth['spread-photo-slanted.jpg'] = [(s.w * 0.06 + s.at * s.w) / W]; // roughly; the spine slants
+}
+
+// Real text on both halves of a spread (so the split halves can be checked for selectable text):
+// page 1 is a plain landscape spread; page 2 is the same spread stored sideways with /Rotate 90.
+{
+  const doc = new mupdf.PDFDocument();
+  const font = doc.addSimpleFont(new mupdf.Font('Helvetica'));
+  const [W, H] = [1190, 842]; // two A4 pages side by side, in points
+  const half = (x0, title, word) => {
+    let t = `BT /F1 28 Tf ${x0 + 60} ${H - 110} Td (${title}) Tj ET\n`;
+    for (let i = 0; i < 14; i++) t += `BT /F1 13 Tf ${x0 + 60} ${H - 170 - i * 22} Td (${word} line ${i + 1} of the ${word.toLowerCase()} page.) Tj ET\n`;
+    return t;
+  };
+  // Drawn on a landscape page (y up); a soft grey band marks the fold.
+  const spreadOps = `0.8 g ${W / 2 - 6} 0 12 ${H} re f 0 g\n${half(0, 'LEFT PAGE', 'Left')}${half(W / 2, 'RIGHT PAGE', 'Right')}`;
+  doc.insertPage(-1, doc.addPage([0, 0, W, H], 0, { Font: { F1: font } }, spreadOps));
+  // Stored portrait (H wide, W tall); /Rotate 90 turns it clockwise to show the landscape spread.
+  doc.insertPage(-1, doc.addPage([0, 0, H, W], 90, { Font: { F1: font } }, `q 0 1 -1 0 ${H} 0 cm\n${spreadOps}Q`));
+  write('spread-text.pdf', doc.saveToBuffer('compress').asUint8Array().slice());
+  doc.destroy();
+  truth['spread-text.pdf'] = [0.5, 0.5];
+}
+
+fs.writeFileSync(path.join(dir, 'spreads.json'), JSON.stringify(truth, null, 1) + '\n');
+console.log('spreads.json');
+
 text50.destroy();

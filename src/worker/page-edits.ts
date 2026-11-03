@@ -160,6 +160,18 @@ export function drawView(view: View, after: Matrix, cs: mupdf.ColorSpace, alpha:
   }
 }
 
+/** Size of the visible area of a view, in the page's drawing units. */
+export function viewSize(view: View): [number, number] {
+  const page = view.doc.loadPage(view.index);
+  try {
+    const b = page.getBounds() as Rect;
+    const r = view.crop ? cropRect(b, view.crop) : b;
+    return [Math.max(1, r[2] - r[0]), Math.max(1, r[3] - r[1])];
+  } finally {
+    page.destroy();
+  }
+}
+
 /** Width of the visible area of a view, in the page's drawing units. */
 export function viewWidth(view: View): number {
   const page = view.doc.loadPage(view.index);

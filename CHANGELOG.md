@@ -5,6 +5,8 @@
 - **Straighten:** fixes pages scanned or photographed slightly crooked (up to 15°), from Page tools or the page preview. The tilt is measured from the lines of text, and the page is turned back without redrawing it, so text stays selectable. Pages with no clear lines of text are left alone.
 - **Fine rotate:** a slider in the page preview turns a page by up to 10° either way, in 0.1° steps, with Reset. It is saved the same way as Straighten.
 - **Straighten photo:** drag four corners onto a photographed sheet and it becomes a flat, cropped page. Photo pages only. On phones a magnifier shows under your finger; the corners also move with the arrow keys.
+- **Split book spreads:** turns scans or photos of two facing pages into two pages, for a whole book at once, as one undoable step. It finds the spine (a dark fold or a white gap), straightens a slanted spine first, and leaves covers and single pages alone. Splits it is unsure about get a **Check split** badge and a Review that steps through them. Any page can also be split by hand from the page preview. Choose an overlap (none, 1% or 2%) and Right page first for right-to-left books.
+- Each new tool can be switched off in `src/pdfmango.config.ts` (`features`).
 - Docs: the README and About page now say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
 
 ## 0.3.0 (October 2026)

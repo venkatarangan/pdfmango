@@ -13,6 +13,7 @@ import { plural, resultLine } from './format';
 import { settings } from './settings.svelte';
 import { zip } from './zip';
 import { editOf, setFineRotations, shownSize } from './edits';
+import { applyPlan, planSplits, type Measured, type SplitChoice } from './split';
 import { config } from '../pdfmango.config';
 import type { CompressionLevel, EngineErrorCode, ExportOptions, ExportPage, ExportProgress, ImageExportOptions, OpenResult, PageRef, PageSize } from './types';
 
@@ -494,6 +495,107 @@ export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?:
 /** Sets one page's fine rotation (the slider in the page preview). One undoable edit. */
 export function setFineRotation(uid: string, angle: number) {
   app.edit((pages) => setFineRotations(pages, new Map([[uid, angle]])));
+}
+
+// ---- Split book spreads ---------------------------------------------------------------------------------
+
+/** Split choices, remembered for this visit only. */
+class SplitPrefs {
+  overlap = $state<number>(config.split.defaultOverlap);
+  rightFirst = $state(false);
+}
+export const splitPrefs = new SplitPrefs();
+
+/** Split editor requests: one page to split by hand, or a list of spreads to check one after another. */
+export type SplitTarget = { mode: 'manual'; uid: string } | { mode: 'review'; ids: string[] };
+class SplitUi {
+  target = $state<SplitTarget | null>(null);
+}
+export const splitUi = new SplitUi();
+
+/** Spreads that still carry a "Check split" badge, in page order. */
+export function spreadsToCheck(): string[] {
+  const ids: string[] = [];
+  for (const p of app.pages) if (p.review && p.spread && !ids.includes(p.spread.id)) ids.push(p.spread.id);
+  return ids;
+}
+
+export function reviewSplits() {
+  const ids = spreadsToCheck();
+  if (ids.length) splitUi.target = { mode: 'review', ids };
+}
+
+/** How far the top and bottom of the spine may differ (share of the width) before it counts as slanted. */
+const SLANT_LIMIT = 0.01;
+
+/**
+ * Split book spreads: finds two-page spreads among the selected pages (or all pages) and splits
+ * each into two pages. Pages already split are skipped. The whole batch is one undoable edit.
+ */
+export async function splitSpreads(uids: ReadonlySet<string>, choice: SplitChoice) {
+  if (batch.running || app.exporting) return;
+  const targets = app.pages.filter((p) => (uids.size === 0 || uids.has(p.uid)) && !p.crop);
+  if (targets.length === 0) return notify.show('These pages are already split.');
+  batch.start(`Looking for book spreads in ${plural(targets.length, 'page')}`, targets.length);
+  const measured: Measured[] = [];
+  const fine = new Map<string, number>();
+  try {
+    const api = await engine();
+    for (let i = 0; i < targets.length; i++) {
+      if (batch.cancelled) {
+        notify.announce('Cancelled. No pages were changed.');
+        return;
+      }
+      const p = targets[i];
+      batch.step(i, `Checking page ${i + 1} of ${targets.length}`);
+      let edit = editOf(p);
+      let a = await api.analyseSpread(p.sourceId, p.srcIndex, p.addedRotation, edit);
+      // A slanted spine usually means a tilted page: straighten it first (if it has not been), then look again.
+      if (a.landscape && a.bothHalves && Math.abs(a.slant) > SLANT_LIMIT && !p.fineRotation) {
+        const skew = await api.detectSkew(p.sourceId, p.srcIndex, edit);
+        if (skew.verdict === 'tilted') {
+          fine.set(p.uid, -skew.angle);
+          edit = { ...edit, fineRotation: -skew.angle };
+          a = await api.analyseSpread(p.sourceId, p.srcIndex, p.addedRotation, edit);
+        }
+      }
+      measured.push({ uid: p.uid, landscape: a.landscape, bothHalves: a.bothHalves, at: a.gutter.at, z: a.gutter.z, slanted: Math.abs(a.slant) > SLANT_LIMIT });
+    }
+  } catch (e) {
+    reportError(errorCode(e));
+    return;
+  } finally {
+    batch.finish();
+  }
+  const plan = planSplits(measured, config.split.minConfidence);
+  // Only pages that are split keep the straightening found for them.
+  for (const uid of [...fine.keys()]) if (!plan.split.has(uid)) fine.delete(uid);
+  app.edit((pages) => applyPlan(pages, plan, fine, choice));
+  const n = plan.split.size;
+  const check = [...plan.split.values()].filter((d) => d.review).length;
+  if (n === 0) {
+    notify.show(
+      plan.unclear
+        ? `No clear book spreads found. ${plural(plan.unclear, 'wide page')} had no clear spine; open one and use Split into two pages.`
+        : 'No book spreads found. Spreads are pages wider than tall with a page on each side.',
+    );
+    return;
+  }
+  let text = `Split ${plural(n, 'spread')} into ${plural(n * 2, 'page')}`;
+  if (check) text += `; ${check} to check`;
+  text += '.';
+  if (plan.unclear) text += ` ${plural(plan.unclear, 'wide page')} left as ${plan.unclear === 1 ? 'it was' : 'they were'} (no clear spine).`;
+  notify.show(text, 'info', check ? { label: 'Review', run: reviewSplits } : undefined);
+}
+
+/** Asks the worker where the spine of one page probably is (for the manual split editor). */
+export async function guessSpine(p: PageRef): Promise<number> {
+  try {
+    const a = await (await engine()).analyseSpread(p.sourceId, p.srcIndex, p.addedRotation, editOf(p));
+    return a.gutter.z >= config.split.minConfidence / 2 ? a.gutter.at : 0.5;
+  } catch {
+    return 0.5;
+  }
 }
 
 // ---- Start over ---------------------------------------------------------------------------------------------

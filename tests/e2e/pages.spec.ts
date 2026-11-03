@@ -103,7 +103,7 @@ test('Straighten photo: corners flatten a photo page; Remove puts it back', asyn
   await expect(preview.getByRole('button', { name: 'Straighten photo' })).toHaveCount(0); // PDF pages: not offered
   await preview.getByRole('button', { name: 'Previous page' }).click();
   await preview.getByRole('button', { name: 'Straighten photo' }).click();
-  const editor = page.locator('dialog.editor');
+  const editor = page.locator('dialog.photo-editor');
   await expect(editor.getByRole('heading', { name: 'Straighten photo' })).toBeVisible();
   // Move the top-left corner with the keyboard, then apply.
   await editor.getByRole('button', { name: /top-left corner/ }).focus();
@@ -126,4 +126,53 @@ test('Straighten photo: corners flatten a photo page; Remove puts it back', asyn
   await cards(page).first().locator('.hit').dblclick();
   await preview.getByRole('button', { name: 'Straighten photo' }).click();
   await expect(editor.getByRole('button', { name: 'Remove' })).toBeVisible();
+});
+
+test('Split book spreads: a 20-page book becomes 37 pages; the unsure one is shown in Review', async ({ page }) => {
+  await addFiles(page, ['book-20.pdf'], 20);
+  await page.getByRole('button', { name: 'Page tools' }).click();
+  await page.getByRole('menuitem', { name: 'Split book spreads…' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Split', exact: true }).click();
+  await expect(page.locator('.snack')).toContainText('Split 17 spreads into 34 pages; 1 to check.');
+  await expect(cards(page)).toHaveCount(37);
+  await expect(page.locator('.card .review')).toHaveCount(2); // both halves of the unsure spread
+  await page.locator('.snack').getByRole('button', { name: 'Review' }).click();
+  const editor = page.locator('dialog.split-editor[open]');
+  await expect(editor.getByRole('heading', { name: 'Check split' })).toBeVisible();
+  await editor.getByRole('slider', { name: /Split line/ }).focus();
+  await page.keyboard.press('ArrowLeft');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator('.card .review')).toHaveCount(0);
+  await expect(cards(page)).toHaveCount(37);
+  // The whole batch is one undo step (after the review edit).
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+z');
+  await expect(cards(page)).toHaveCount(20);
+});
+
+test('Split then export: each spread becomes two pages in reading order, with text on each', async ({ page }) => {
+  await addFiles(page, ['spread-text.pdf'], 2);
+  await page.getByRole('button', { name: 'Page tools' }).click();
+  await page.getByRole('menuitem', { name: 'Split book spreads…' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Split', exact: true }).click();
+  await expect(page.locator('.snack')).toContainText('Split 2 spreads into 4 pages.');
+  const out = await saveAll(page);
+  const order = [0, 1, 2, 3].map((i) => (textOf(out, i).includes('LEFT PAGE') ? 'L' : textOf(out, i).includes('RIGHT PAGE') ? 'R' : '?'));
+  expect(order).toEqual(['L', 'R', 'L', 'R']);
+  for (let i = 0; i < 4; i++) expect(textOf(out, i)).toMatch(/line 14 of the (left|right) page/);
+});
+
+test('one page split by hand from the preview, then put back with Don\'t split this page', async ({ page }) => {
+  await addFiles(page, ['spread-scan.pdf', 'tilted-scans.pdf'], 4);
+  await cards(page).first().locator('.hit').dblclick();
+  await page.locator('dialog.preview').getByRole('button', { name: 'Split into two pages' }).click();
+  const editor = page.locator('dialog.split-editor[open]');
+  await expect(editor.getByRole('heading', { name: 'Split into two pages' })).toBeVisible();
+  await editor.getByRole('button', { name: 'Split', exact: true }).click();
+  await expect(cards(page)).toHaveCount(5);
+  const preview = page.locator('dialog.preview');
+  await preview.getByRole('button', { name: 'Adjust split' }).click();
+  await editor.getByRole('button', { name: "Don't split this page" }).click();
+  await expect(cards(page)).toHaveCount(4);
 });

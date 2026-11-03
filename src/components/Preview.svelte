@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
   import { renderLarge } from '../lib/thumbs';
-  import { batch, setFineRotation, straightenPages } from '../lib/actions.svelte';
+  import { batch, setFineRotation, splitUi, straightenPages } from '../lib/actions.svelte';
   import { cleanAngle, editOf } from '../lib/edits';
   import { config } from '../pdfmango.config';
   import Icon from './Icon.svelte';
@@ -23,6 +23,11 @@
   // Straighten photo works on photo pages that have not been split.
   const canFlatten = $derived(config.features.straightenPhoto && source?.kind === 'image' && !page?.crop);
   let photoOpen = $state(false);
+  const canSplit = $derived(config.features.splitSpreads && !!page);
+  function openSplit() {
+    if (!page) return;
+    splitUi.target = page.spread ? { mode: 'review', ids: [page.spread.id] } : { mode: 'manual', uid: page.uid };
+  }
   // Result of the last tool used here, shown under the page (cleared when the page changes).
   let status = $state('');
   let statusFor = '';
@@ -143,8 +148,13 @@
     <div class="stage" class:loading>
       <canvas bind:this={canvas} class:rotated style:transform="rotate({page.addedRotation}deg)"></canvas>
     </div>
-    {#if config.features.straighten || config.features.fineRotate || canFlatten}
+    {#if config.features.straighten || config.features.fineRotate || canFlatten || canSplit}
       <div class="tools">
+        {#if canSplit}
+          <button type="button" class="btn tool" onclick={openSplit} disabled={busy}>
+            <Icon name="split" /> {page.spread ? 'Adjust split' : 'Split into two pages'}
+          </button>
+        {/if}
         {#if canFlatten}
           <button type="button" class="btn tool" onclick={() => (photoOpen = true)} disabled={busy}>
             <Icon name="straightenPhoto" /> Straighten photo
