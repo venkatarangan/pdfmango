@@ -375,10 +375,14 @@ const SKEW_RENDER_PX = 1000;
  * How much the page's text lines are tilted, measured on the page without its current fine
  * rotation (so Straighten can run again). The caller sets fineRotation = -angle.
  */
-export function detectSkew(sourceId: string, srcIndex: number, edit?: PageEdit): SkewResult {
+export function detectSkew(sourceId: string, srcIndex: number, edit?: PageEdit, addedRotation: Rotation = 0): SkewResult {
   const view = viewOf(sourceId, srcIndex, { ...edit, fineRotation: undefined });
-  const s = Math.min(4, SKEW_RENDER_PX / viewWidth(view));
-  const pix = drawView(view, [s, 0, 0, s, 0, 0], mupdf.ColorSpace.DeviceGray, false);
+  // Measured as the page shows (with its added quarter turns). A turn by a multiple of 90° does
+  // not change the tilt angle, so the answer applies to the page's fine rotation directly.
+  const [w, h] = viewSize(view);
+  const s = Math.min(4, SKEW_RENDER_PX / (addedRotation % 180 ? h : w));
+  const after = (addedRotation ? mupdf.Matrix.concat(mupdf.Matrix.scale(s, s), mupdf.Matrix.rotate(addedRotation)) : [s, 0, 0, s, 0, 0]) as [number, number, number, number, number, number];
+  const pix = drawView(view, after, mupdf.ColorSpace.DeviceGray, false);
   try {
     const g = toGray(pix.getPixels(), pix.getWidth(), pix.getHeight(), pix.getNumberOfComponents());
     return findSkew(g, { maxAngle: config.straighten.maxAngle });

@@ -40,6 +40,7 @@ export const config = {
     minAspect: 1.2, // a spread is at least this much wider than tall
     middleBand: [0.4, 0.6], // where the spine is looked for, as a share of the width
     minConfidence: 4, // how far the spine must stand out (z-score); below this the page is flagged for review
+    minGuess: 3, // with no confident page in the batch, a wide page whose best spine scores this much is still split, and flagged
     defaultOverlap: 0.01, // each half reaches this share of the width past the spine
   },
 } as const;

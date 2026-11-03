@@ -63,6 +63,11 @@ describe('tilt detector', () => {
     const { sourceId } = ok(engine.open(fixture('tilted-scans.pdf')));
     expect(Math.abs(engine.detectSkew(sourceId, 1, { fineRotation: -5 }).angle - 5)).toBeLessThanOrEqual(0.2);
   });
+  it('measures the page as it shows, with its added quarter turns', () => {
+    const { sourceId } = ok(engine.open(fixture('tilted-scans.pdf')));
+    expect(engine.detectSkew(sourceId, 1, undefined, 180).angle).toBeCloseTo(5, 1); // upside down: same tilt
+    expect(engine.detectSkew(sourceId, 1, undefined, 90).verdict).toBe('unsure'); // turned sideways: lines run down the page
+  });
   it('finds the angle of one page in under a second', () => {
     const { sourceId } = ok(engine.open(fixture('tilted-scans.pdf')));
     const t = performance.now();

@@ -444,6 +444,7 @@ export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?:
   let tilted = 0;
   let straight = 0;
   let unsure = 0;
+  let unsurePhoto = false;
   let lastAngle = 0;
   try {
     const api = await engine();
@@ -456,9 +457,10 @@ export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?:
       const p = targets[i];
       batch.step(i, `Checking page ${i + 1} of ${targets.length}`);
       // A duplicated page shares its source page and edits, so it is measured once.
-      const key = `${p.sourceId}:${p.srcIndex}:${JSON.stringify(p.crop ?? null)}:${JSON.stringify(p.corners ?? null)}`;
+      const key = `${p.sourceId}:${p.srcIndex}:${p.addedRotation}:${JSON.stringify(editOf({ ...p, fineRotation: undefined }) ?? null)}`;
       let r = seen.get(key);
-      if (!r) seen.set(key, (r = await api.detectSkew(p.sourceId, p.srcIndex, editOf(p))));
+      // Measured as the page shows, so a page turned by 90° in PDFMango is read the right way up.
+      if (!r) seen.set(key, (r = await api.detectSkew(p.sourceId, p.srcIndex, editOf(p), p.addedRotation)));
       if (r.verdict === 'tilted') {
         tilted++;
         lastAngle = r.angle;
@@ -466,7 +468,10 @@ export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?:
       } else if (r.verdict === 'straight') {
         straight++;
         angles.set(p.uid, 0);
-      } else unsure++;
+      } else {
+        unsure++;
+        if (app.sources.get(p.sourceId)?.kind === 'image' && !p.corners) unsurePhoto = true;
+      }
     }
   } catch (e) {
     reportError(errorCode(e));
@@ -481,14 +486,18 @@ export async function straightenPages(uids: ReadonlySet<string>, opts: { quiet?:
     else notify.show(msg);
     return msg;
   };
+  // What to try when no clear lines of text were found.
+  const instead = unsurePhoto
+    ? 'For a photo of a page, use Straighten photo; or turn it by hand with Fine rotate in the page preview.'
+    : 'Turn it by hand with Fine rotate in the page preview.';
   if (targets.length === 1) {
     if (tilted) return say(`Straightened by ${deg(lastAngle)}.`);
     if (straight) return say('Already straight.');
-    return say('No clear lines of text to straighten by, so the page was left as it is.');
+    return say(`Couldn't find straight lines of text, so the page was left as it is. ${instead}`);
   }
-  const parts = [tilted ? `Straightened ${plural(tilted, 'page')}.` : 'No page needed straightening.'];
+  const parts = [tilted ? `Straightened ${plural(tilted, 'page')}.` : 'No page was straightened.'];
   if (straight) parts.push(`${plural(straight, 'page')} already straight.`);
-  if (unsure) parts.push(`${plural(unsure, 'page')} left as ${unsure === 1 ? 'it was' : 'they were'} (no clear lines of text).`);
+  if (unsure) parts.push(`${plural(unsure, 'page')} left as ${unsure === 1 ? 'it was' : 'they were'}: no straight lines of text found. ${instead.replace('Turn it', 'Turn them')}`);
   return say(parts.join(' '));
 }
 
@@ -564,7 +573,7 @@ export async function splitSpreads(uids: ReadonlySet<string>, choice: SplitChoic
       let a = await api.analyseSpread(p.sourceId, p.srcIndex, p.addedRotation, edit);
       // A slanted spine usually means a tilted page: straighten it first (if it has not been), then look again.
       if (a.landscape && a.bothHalves && Math.abs(a.slant) > SLANT_LIMIT && !p.fineRotation) {
-        const skew = await api.detectSkew(p.sourceId, p.srcIndex, edit);
+        const skew = await api.detectSkew(p.sourceId, p.srcIndex, edit, p.addedRotation);
         if (skew.verdict === 'tilted') {
           fine.set(p.uid, -skew.angle);
           edit = { ...edit, fineRotation: -skew.angle };
@@ -579,18 +588,19 @@ export async function splitSpreads(uids: ReadonlySet<string>, choice: SplitChoic
   } finally {
     batch.finish();
   }
-  const plan = planSplits(measured, config.split.minConfidence);
+  const plan = planSplits(measured, config.split.minConfidence, config.split.minGuess);
   // Only pages that are split keep the straightening found for them.
   for (const uid of [...fine.keys()]) if (!plan.split.has(uid)) fine.delete(uid);
   app.edit((pages) => applyPlan(pages, plan, fine, choice));
   const n = plan.split.size;
   const check = [...plan.split.values()].filter((d) => d.review).length;
   if (n === 0) {
-    notify.show(
-      plan.unclear
-        ? `No clear book spreads found. ${plural(plan.unclear, 'wide page')} had no clear spine; open one and use Split into two pages.`
-        : 'No book spreads found. Spreads are pages wider than tall with a page on each side.',
-    );
+    // Say why, so the visitor knows what to try next.
+    const why: string[] = [];
+    if (plan.portrait) why.push(`${plural(plan.portrait, 'page')} ${plan.portrait === 1 ? 'is' : 'are'} taller than wide, so ${plan.portrait === 1 ? "it isn't a spread" : "they aren't spreads"}.`);
+    if (plan.oneSided) why.push(`${plural(plan.oneSided, 'wide page')} ${plan.oneSided === 1 ? 'has' : 'have'} content on one side only.`);
+    if (plan.unclear) why.push(`${plural(plan.unclear, 'wide page')} had no clear spine; open ${plan.unclear === 1 ? 'it' : 'one'} and use Split into two pages.`);
+    notify.show(['No book spreads found.', ...why].join(' '));
     return;
   }
   let text = `Split ${plural(n, 'spread')} into ${plural(n * 2, 'page')}`;

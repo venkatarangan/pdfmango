@@ -314,6 +314,48 @@ const spreadPdf = (name, items) => {
   truth['spread-text.pdf'] = [0.5, 0.5];
 }
 
+// A phone photo of an open booklet, like the hard real ones: no shadow in the fold, just a faint
+// dip and a step in brightness (the two pages catch the light differently), slanting a little
+// with perspective; a darker picture on the right page; a dark table round it.
+{
+  const L = grayPage(20), R = grayPage(21);
+  const pw = L.w, ph = L.h, W = Math.round(pw * 2.3), H = Math.round(ph * 1.15);
+  const x0 = Math.round((W - 2 * pw) / 2), y0 = Math.round((H - ph) / 2);
+  const photo = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, W, H], false);
+  const out = photo.getPixels();
+  let seed = 9;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const slant = Math.round(pw * 0.02); // the fold leans this far over the page height
+  let foldSum = 0;
+  for (let y = 0; y < H; y++) {
+    const py = y - y0;
+    const fold = x0 + pw + Math.round((py / ph - 0.5) * slant);
+    if (py >= 0 && py < ph) foldSum += fold;
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 3;
+      const n = (rnd() - 0.5) * 10;
+      let g = -1;
+      if (py >= 0 && py < ph && x >= x0 && x < x0 + 2 * pw) {
+        if (x < fold) {
+          const u = Math.min(pw - 1, Math.max(0, x - (fold - pw)));
+          g = L.px[py * pw + u] * 0.82; // the left page, a little darker
+          if (fold - x <= 2) g -= 18; // the faint dip where the pages meet
+        } else {
+          const u = Math.min(pw - 1, x - fold);
+          g = R.px[py * pw + u] * 0.95;
+          // A darker picture on the right page, near the fold.
+          if (u > pw * 0.06 && u < pw * 0.85 && py > ph * 0.35 && py < ph * 0.62) g = 90 + 60 * Math.sin(u / 9) * Math.cos(py / 13);
+        }
+      }
+      if (g < 0) { out[o] = 120 + n; out[o + 1] = 45 + n; out[o + 2] = 35 + n; } // a red chair
+      else { out[o] = Math.min(255, g * 1.0 + n); out[o + 1] = Math.min(255, g * 0.97 + n); out[o + 2] = Math.min(255, g * 0.9 + n); }
+    }
+  }
+  write('spread-photo-fold.jpg', photo.asJPEG(85, false).slice());
+  photo.destroy();
+  truth['spread-photo-fold.jpg'] = [foldSum / ph / W];
+}
+
 fs.writeFileSync(path.join(dir, 'spreads.json'), JSON.stringify(truth, null, 1) + '\n');
 console.log('spreads.json');
 

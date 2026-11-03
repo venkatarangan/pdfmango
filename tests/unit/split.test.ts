@@ -85,6 +85,17 @@ describe('spine detector', () => {
     expect(m.slanted).toBe(false);
     expect(Math.abs(m.at - truth['spread-photo-slanted.jpg'][0]!)).toBeLessThan(0.02);
   });
+  it('finds a fold that is only a faint step in brightness, as in a phone photo of a booklet', () => {
+    const img = engine.addImage(fixture('spread-photo-fold.jpg'));
+    const a = engine.analyseSpread(img.sourceId, 0, 0);
+    expect(a.gutter.kind).toBe('crease');
+    expect(Math.abs(a.gutter.at - truth['spread-photo-fold.jpg'][0]!)).toBeLessThan(0.02);
+    expect(a.gutter.z).toBeGreaterThanOrEqual(config.split.minGuess);
+  });
+  it('does not mistake an edge inside a photo for a fold', () => {
+    const { sourceId, pageCount } = ok(engine.open(fixture('photo-heavy.pdf')));
+    for (let i = 0; i < pageCount; i++) expect(engine.analyseSpread(sourceId, i, 0).gutter.z).toBeLessThan(config.split.minGuess);
+  });
   it('looks at the page as it shows: a page rotated in PDFMango is measured upright', () => {
     const { sourceId } = ok(engine.open(fixture('spread-scan.pdf')));
     expect(engine.analyseSpread(sourceId, 0, 90).landscape).toBe(false); // now taller than wide
@@ -113,8 +124,24 @@ describe('a whole book', () => {
   });
   it('leaves wide pages alone when no page in the batch has a clear spine', () => {
     const { sourceId, pageCount } = ok(engine.open(fixture('photo-heavy.pdf')));
-    const plan = planSplits(refs(sourceId, pageCount).map((p) => measure(p).m), config.split.minConfidence);
+    const plan = planSplits(refs(sourceId, pageCount).map((p) => measure(p).m), config.split.minConfidence, config.split.minGuess);
     expect(plan.split.size).toBe(0);
+    expect(plan.unclear + plan.oneSided).toBe(pageCount);
+  });
+  it('on its own, a wide page with a fair guess is split at it and flagged', () => {
+    const plan = planSplits(
+      [
+        { uid: 'a', landscape: true, bothHalves: true, at: 0.49, z: 3.5, slanted: false },
+        { uid: 'b', landscape: true, bothHalves: true, at: 0.5, z: 1, slanted: false },
+        { uid: 'c', landscape: false, bothHalves: true, at: 0.5, z: 0, slanted: false },
+        { uid: 'd', landscape: true, bothHalves: false, at: 0.5, z: 9, slanted: false },
+      ],
+      config.split.minConfidence,
+      config.split.minGuess,
+    );
+    expect(plan.split.get('a')).toEqual({ at: 0.49, review: true });
+    expect([...plan.split.keys()]).toEqual(['a']);
+    expect({ unclear: plan.unclear, portrait: plan.portrait, oneSided: plan.oneSided }).toEqual({ unclear: 1, portrait: 1, oneSided: 1 });
   });
   it('finds the spine of a 300-page book in well under a minute', () => {
     const { sourceId } = ok(engine.open(fixture('book-20.pdf')));
@@ -202,7 +229,7 @@ describe('page model', () => {
   const page = (): PageRef => ({ uid: uid(), sourceId: 's1', srcIndex: 0, addedRotation: 0 });
   it('one undo reverses a whole batch split', () => {
     let pages = [page(), page(), page()];
-    const plan = { split: new Map([[pages[0].uid, { at: 0.5, review: false }], [pages[2].uid, { at: 0.48, review: true }]]), unclear: 0 };
+    const plan = { split: new Map([[pages[0].uid, { at: 0.5, review: false }], [pages[2].uid, { at: 0.48, review: true }]]), unclear: 0, portrait: 0, oneSided: 0 };
     let h: model.History = { undo: [], redo: [] };
     const next = applyPlan(pages, plan, new Map([[pages[2].uid, -1.5]]), choice, uid);
     h = model.pushHistory(h, pages);

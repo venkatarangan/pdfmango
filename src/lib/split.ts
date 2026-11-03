@@ -110,8 +110,12 @@ export type Measured = {
 export type Decision = { at: number; review: boolean };
 export type Plan = {
   split: Map<string, Decision>;
-  /** Wide pages with something on both halves but no clear spine, left alone because no page in the batch had one either. */
+  /** Wide pages with something on both halves but no clear spine, left alone. */
   unclear: number;
+  /** Pages not wider than tall (never treated as spreads). */
+  portrait: number;
+  /** Wide pages with content on one side only. */
+  oneSided: number;
 };
 
 const median = (xs: number[]) => {
@@ -123,9 +127,10 @@ const median = (xs: number[]) => {
 /**
  * Confident spreads split where their spine is. Wide pages without a clear spine use the median
  * spine of the confident pages (a book is bound the same way throughout) and get a review badge;
- * so do pages whose spine still slants. With no confident page to go by, unclear pages are left.
+ * so do pages whose spine still slants. With no confident page to go by, a wide page is split at
+ * its own best guess if that scores at least `minGuess`, with a review badge; otherwise it is left.
  */
-export function planSplits(pages: readonly Measured[], minConfidence: number): Plan {
+export function planSplits(pages: readonly Measured[], minConfidence: number, minGuess = Infinity): Plan {
   const candidates = pages.filter((m) => m.landscape && m.bothHalves);
   const confident = candidates.filter((m) => m.z >= minConfidence && !m.slanted);
   const mid = confident.length ? median(confident.map((m) => m.at)) : null;
@@ -135,9 +140,12 @@ export function planSplits(pages: readonly Measured[], minConfidence: number): P
     if (m.z >= minConfidence && !m.slanted) split.set(m.uid, { at: m.at, review: false });
     else if (m.z >= minConfidence) split.set(m.uid, { at: m.at, review: true }); // clear spine, but slanted
     else if (mid !== null) split.set(m.uid, { at: mid, review: true });
+    else if (m.z >= minGuess) split.set(m.uid, { at: m.at, review: true });
     else unclear++;
   }
-  return { split, unclear };
+  const portrait = pages.filter((m) => !m.landscape).length;
+  const oneSided = pages.filter((m) => m.landscape && !m.bothHalves).length;
+  return { split, unclear, portrait, oneSided };
 }
 
 /** Applies a plan to the page list: one undoable edit for the whole batch. */

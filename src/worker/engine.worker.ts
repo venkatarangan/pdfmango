@@ -41,7 +41,7 @@ const api = {
       const r = e.renderImage(page, opts);
       return Comlink.transfer(r, [r.bytes]);
     }),
-  detectSkew: (sourceId: string, srcIndex: number, edit?: PageEdit) => call((e) => e.detectSkew(sourceId, srcIndex, edit)),
+  detectSkew: (sourceId: string, srcIndex: number, edit?: PageEdit, addedRotation: Rotation = 0) => call((e) => e.detectSkew(sourceId, srcIndex, edit, addedRotation)),
   analyseSpread: (sourceId: string, srcIndex: number, addedRotation: Rotation, edit?: PageEdit) => call((e) => e.analyseSpread(sourceId, srcIndex, addedRotation, edit)),
   cancel: () => call((e) => e.cancel()),
   dispose: (sourceId: string) => call((e) => e.dispose(sourceId)),

@@ -117,6 +117,11 @@ export type SkewResult = {
   gain: number;
 };
 
+/** Tilts up to this many degrees count as small. */
+const SMALL_ANGLE = 3;
+/** The gain a small tilt needs over 0°. */
+const SMALL_ANGLE_GAIN = 1.03;
+
 export type SkewOptions = {
   maxAngle?: number;
   /** The best angle must beat 0° by this factor. */
@@ -161,6 +166,9 @@ export function detectSkew(g: Gray, opts: SkewOptions = {}): SkewResult {
   const peak = bestScore / Math.max(1, total / tried);
   best = Math.round(best * 100) / 100;
   if (peak < minPeak) return { ...unsure, gain };
-  if (Math.abs(best) < 0.05 || gain < minGain) return { angle: 0, verdict: Math.abs(best) < 0.3 ? 'straight' : 'unsure', gain };
+  // A small real tilt lifts the score only a little, so small angles need a smaller gain (the
+  // peak test above still has to pass, which keeps photos and noise out).
+  const needed = Math.abs(best) <= SMALL_ANGLE ? Math.min(minGain, SMALL_ANGLE_GAIN) : minGain;
+  if (Math.abs(best) < 0.05 || gain < needed) return { angle: 0, verdict: Math.abs(best) < 0.3 ? 'straight' : 'unsure', gain };
   return { angle: best, verdict: 'tilted', gain };
 }

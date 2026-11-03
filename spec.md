@@ -497,13 +497,14 @@ Build in milestone order, run the spike first, and stop to report whenever reali
 
 ### How they work
 
-- **Straighten (detection):** the worker renders the page in grey, turns it black and white (Otsu threshold) and searches for the angle whose row projection profile is sharpest. The search is coarse first (0.5° steps), then fine (0.05° steps). Only thin dark strokes count, so a table or a border round a photographed page does not stop it.
+- **Straighten (detection):** the worker renders the page in grey, turns it black and white (Otsu threshold) and searches for the angle whose row projection profile is sharpest. The search is coarse first (0.5° steps), then fine (0.05° steps). Only thin dark strokes count, so a table or a border round a photographed page does not stop it. Tilts up to 3° need a smaller gain over 0° (1.03 instead of 1.08), since a small real tilt lifts the score only a little; the peak test still keeps photos out. The page is measured as it shows, after any quarter turns added in PDFMango. When no clear lines are found, the message points to Fine rotate, or to Straighten photo for a photo.
 - **Straighten and Fine rotate (export):** applied without redrawing the page. The page content is wrapped in a turn about the page centre (`q … cm … Q`), so text stays selectable. Pages without edits keep the original export path.
 - **Straighten photo:** flattened in the worker with MuPDF's `Pixmap.warp`. The size comes from the average edge lengths, with the long side capped at 3000 px. The result is a JPEG at quality 90.
-- **Split (finding the spine):** only landscape pages are considered. The worker renders each page as it shows (about 800 px wide) and looks in the middle 40–60% of the width, using column profiles. The spine is either a dark fold shadow or a white gap. How clearly it stands out is scored as a z-score. A spine that slants between the top and bottom thirds is straightened first.
+- **Split (finding the spine):** only landscape pages are considered. The worker renders each page as it shows (about 800 px wide) and looks in the middle 40–60% of the width, using column profiles. The spine is a dark fold shadow, a white gap, or (in photos) a fold: a thin dip or a step in brightness between two flat stretches of paper that lines up down most of the page, with paper on both sides. How clearly it stands out is scored as a z-score. A spine that slants between the top and bottom thirds is straightened first.
 - **Split (what happens to each page):**
   - A confident spine splits the page there.
-  - A wide page with no clear spine uses the book's median spine and gets a **Check split** badge. If no page in the batch is confident, those pages are left alone.
+  - A wide page with no clear spine uses the book's median spine and gets a **Check split** badge. If no page in the batch is confident, a wide page is still split at its own best guess, with the badge, when that guess scores at least `split.minGuess` (3); otherwise it is left alone.
+  - When nothing is split, the message says why: pages taller than wide, content on one side only, or no clear spine.
   - Covers and single pages are left alone.
   - A **Review** editor steps through the unsure splits. It has a draggable line, an overlap choice, and Apply, Skip and Don't split this page. The same editor is used for the per-page split.
 - **Split (the halves):** PDF halves are crops, set with `/MediaBox` and `/CropBox`. Existing rotation is handled. The hidden half stays in the file. The Scan level redraws the pages and removes it. If Scan can't make the file smaller, the safety net saves the Lossless file and the half stays. Photo halves are cut with `Pixmap.warp`.
@@ -527,7 +528,7 @@ All in `src/pdfmango.config.ts`. Each tool has an on/off flag under `features`, 
 - `features.straighten`, `features.fineRotate`, `features.straightenPhoto`, `features.splitSpreads`, `features.crop`
 - `straighten`: `maxAngle` (15) and `sliderRange` (10)
 - `straightenPhoto`: `maxSidePx` (3000) and `jpegQuality` (90)
-- `split`: `minAspect` (1.2), `middleBand` ([0.4, 0.6]), `minConfidence` (4) and `defaultOverlap` (0.01)
+- `split`: `minAspect` (1.2), `middleBand` ([0.4, 0.6]), `minConfidence` (4), `minGuess` (3) and `defaultOverlap` (0.01)
 
 ### Code
 
