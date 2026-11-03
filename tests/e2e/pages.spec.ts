@@ -57,12 +57,41 @@ test('Straighten from the page preview says what it did; undo puts the tilt back
   await cards(page).nth(1).locator('.hit').dblclick();
   const preview = page.locator('dialog.preview');
   await preview.getByRole('button', { name: 'Straighten' }).click();
-  await expect(preview.getByRole('status')).toHaveText('Straightened by 5°.');
+  await expect(preview.locator('p[role=status]')).toHaveText('Straightened by 5°.');
   await preview.getByRole('button', { name: 'Straighten' }).click();
-  await expect(preview.getByRole('status')).toHaveText('Straightened by 5°.'); // measured afresh, same answer
+  await expect(preview.locator('p[role=status]')).toHaveText('Straightened by 5°.'); // measured afresh, same answer
   await preview.getByRole('button', { name: 'Close preview' }).click();
   await page.keyboard.press('Control+z');
   await page.getByRole('button', { name: 'Page tools' }).click();
   await page.getByRole('menuitem', { name: 'Straighten all' }).click();
   await expect(page.locator('.snack')).toContainText('Straightened 3 pages.');
+});
+
+test('fine-rotate slider turns the page at export; Reset and undo take it back', async ({ page }) => {
+  await addFiles(page, ['tilted-scans.pdf'], 3);
+  await cards(page).nth(1).locator('.hit').dblclick();
+  const preview = page.locator('dialog.preview');
+  await preview.getByLabel('Fine rotate').fill('-5');
+  await expect(preview.locator('output')).toHaveText('-5.0°');
+  await preview.getByRole('button', { name: 'Reset' }).click();
+  await expect(preview.locator('output')).toHaveText('0.0°');
+  await expect(preview.getByRole('button', { name: 'Reset' })).toBeDisabled();
+  await preview.getByLabel('Fine rotate').fill('-5');
+  await preview.getByRole('button', { name: 'Close preview' }).click();
+
+  const out = await saveAll(page);
+  const doc = mupdf.Document.openDocument(out, 'application/pdf').asPDF()!;
+  const firstOp = (i: number) => {
+    const c = doc.findPage(i).get('Contents');
+    return c.isArray() ? c.get(0).readStream().asString() : '';
+  };
+  expect(firstOp(0)).toBe(''); // untouched pages keep their own content
+  expect(firstOp(1)).toMatch(/^q 0\.996195 -?0\.087156 -?0\.087156 0\.996195 /);
+  doc.destroy();
+
+  await page.keyboard.press('Control+z'); // the slide
+  await page.keyboard.press('Control+z'); // the reset
+  await page.keyboard.press('Control+z'); // the first slide
+  await cards(page).nth(1).locator('.hit').dblclick();
+  await expect(preview.locator('output')).toHaveText('0.0°');
 });

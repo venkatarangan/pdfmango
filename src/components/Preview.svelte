@@ -1,8 +1,8 @@
 <script lang="ts">
   import { app } from '../lib/state.svelte';
   import { renderLarge } from '../lib/thumbs';
-  import { batch, straightenPages } from '../lib/actions.svelte';
-  import { editOf } from '../lib/edits';
+  import { batch, setFineRotation, straightenPages } from '../lib/actions.svelte';
+  import { cleanAngle, editOf } from '../lib/edits';
   import { config } from '../pdfmango.config';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
@@ -39,10 +39,13 @@
     else if (!page && el.open) el.close();
   });
 
-  // Render the current page large enough for the screen (capped for memory).
+  // Render the current page large enough for the screen (capped for memory). The last render is
+  // kept, so the fine-rotate slider can turn it straight away while the worker draws the real one.
+  let shown: { bmp: ImageBitmap; angle: number } | null = null;
   $effect(() => {
     if (!page || !canvas) return;
     const target = canvas;
+    const angle = page.fineRotation ?? 0;
     const width = Math.min(1800, Math.round(Math.min(window.innerWidth, 1100) * Math.min(2, devicePixelRatio || 1)));
     let stale = false;
     loading = true;
@@ -52,7 +55,8 @@
         target.width = bmp.width;
         target.height = bmp.height;
         target.getContext('2d')?.drawImage(bmp, 0, 0);
-        bmp.close();
+        shown?.bmp.close();
+        shown = { bmp, angle };
       })
       .catch(() => {})
       .finally(() => {
@@ -60,6 +64,48 @@
       });
     return () => (stale = true);
   });
+  $effect(() => {
+    if (page) return;
+    shown?.bmp.close();
+    shown = null;
+  });
+
+  // ---- Fine rotation ----
+  const range = config.straighten.sliderRange;
+  let angle = $state(0);
+  $effect.pre(() => {
+    angle = page?.fineRotation ?? 0;
+  });
+  /** Turns the last render by the difference, on white, inside the page's own outline. */
+  function drawTurned(value: number) {
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || !canvas || !shown) return;
+    const { width: w, height: h } = canvas;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(((value - shown.angle) * Math.PI) / 180);
+    ctx.drawImage(shown.bmp, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  function slide(e: Event) {
+    angle = Number((e.currentTarget as HTMLInputElement).value);
+    drawTurned(angle);
+  }
+  function commit() {
+    if (!page) return;
+    setFineRotation(page.uid, angle);
+    status = '';
+  }
+  function resetTurn() {
+    if (!page) return;
+    angle = 0;
+    drawTurned(0);
+    setFineRotation(page.uid, 0);
+    status = '';
+  }
+  const angleText = $derived(`${cleanAngle(angle) > 0 ? '+' : ''}${cleanAngle(angle).toFixed(1)}°`);
 
   function go(delta: number) {
     const next = app.pages[index + delta];
@@ -67,6 +113,7 @@
   }
 
   function keydown(e: KeyboardEvent) {
+    if ((e.target as HTMLElement).closest('input')) return; // the slider uses the arrow keys
     if (e.key === 'ArrowLeft') go(-1);
     else if (e.key === 'ArrowRight') go(1);
   }
@@ -92,11 +139,34 @@
     <div class="stage" class:loading>
       <canvas bind:this={canvas} class:rotated style:transform="rotate({page.addedRotation}deg)"></canvas>
     </div>
-    {#if config.features.straighten}
+    {#if config.features.straighten || config.features.fineRotate}
       <div class="tools">
-        <button type="button" class="btn tool" onclick={straighten} disabled={busy}>
-          <Icon name="straighten" /> Straighten
-        </button>
+        {#if config.features.straighten}
+          <button type="button" class="btn tool" onclick={straighten} disabled={busy}>
+            <Icon name="straighten" /> Straighten
+          </button>
+        {/if}
+        {#if config.features.fineRotate}
+          <div class="fine">
+            <label for="fine-rotate">Fine rotate</label>
+            <input
+              id="fine-rotate"
+              type="range"
+              min={-range}
+              max={range}
+              step="0.1"
+              value={angle}
+              oninput={slide}
+              onchange={commit}
+              disabled={busy}
+              aria-valuetext="{angleText}"
+            />
+            <output for="fine-rotate">{angleText}</output>
+            <button type="button" class="btn tool small" onclick={resetTurn} disabled={busy || !page.fineRotation}>
+              <Icon name="reset" /> Reset
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
     {#if status}
@@ -151,6 +221,29 @@
     color: #fff;
     background: rgb(255 255 255 / 0.12);
     padding: 0 16px 0 12px;
+  }
+  .fine {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .fine label {
+    font-weight: 600;
+  }
+  .fine input {
+    width: min(260px, 50vw);
+    accent-color: var(--mango);
+  }
+  .fine output {
+    min-width: 4.5ch;
+    font-variant-numeric: tabular-nums;
+  }
+  .tool.small {
+    min-height: 36px;
+    padding: 0 12px 0 8px;
   }
   .status {
     margin: 0;
