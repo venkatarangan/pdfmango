@@ -21,3 +21,7 @@ spike/*-results.json
 
 # Local backup script (holds a path on this machine)
 backup.bat
+
+# Notes for Claude and build session notes (kept local)
+CLAUDE.md
+session-notes*.md
