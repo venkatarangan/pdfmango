@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (November 2026)
 
 - **Straighten:** fixes pages scanned or photographed slightly crooked (up to 15°), from Page tools or the page preview. The tilt is measured from the lines of text, and the page is turned back without redrawing it, so text stays selectable. Pages with no clear lines of text are left alone.
 - **Fine rotate:** a slider in the page preview turns a page by up to 10° either way, in 0.1° steps, with Reset. It is saved the same way as Straighten.
