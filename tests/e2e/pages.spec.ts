@@ -95,3 +95,35 @@ test('fine-rotate slider turns the page at export; Reset and undo take it back',
   await cards(page).nth(1).locator('.hit').dblclick();
   await expect(preview.locator('output')).toHaveText('0.0°');
 });
+
+test('Straighten photo: corners flatten a photo page; Remove puts it back', async ({ page }) => {
+  await addFiles(page, ['photo-of-sheet.jpg', 'tilted-scans.pdf'], 4);
+  await cards(page).nth(1).locator('.hit').dblclick();
+  const preview = page.locator('dialog.preview');
+  await expect(preview.getByRole('button', { name: 'Straighten photo' })).toHaveCount(0); // PDF pages: not offered
+  await preview.getByRole('button', { name: 'Previous page' }).click();
+  await preview.getByRole('button', { name: 'Straighten photo' }).click();
+  const editor = page.locator('dialog.editor');
+  await expect(editor.getByRole('heading', { name: 'Straighten photo' })).toBeVisible();
+  // Move the top-left corner with the keyboard, then apply.
+  await editor.getByRole('button', { name: /top-left corner/ }).focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await expect(editor).toBeHidden();
+  await preview.getByRole('button', { name: 'Close preview' }).click();
+
+  const out = await saveAll(page);
+  const doc = mupdf.Document.openDocument(out, 'application/pdf');
+  expect(doc.countPages()).toBe(4);
+  doc.destroy();
+
+  await cards(page).first().locator('.hit').dblclick();
+  await preview.getByRole('button', { name: 'Straighten photo' }).click();
+  await editor.getByRole('button', { name: 'Remove' }).click();
+  await expect(editor).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+z'); // undo Remove: the corners come back
+  await cards(page).first().locator('.hit').dblclick();
+  await preview.getByRole('button', { name: 'Straighten photo' }).click();
+  await expect(editor.getByRole('button', { name: 'Remove' })).toBeVisible();
+});

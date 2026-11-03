@@ -147,3 +147,43 @@ export function shownSize(base: PageSize, e: PageEdit | undefined, rotation: Rot
   const [w, h] = editedSize(base, e, maxSide);
   return rotation % 180 ? [h, w] : [w, h];
 }
+
+// ---- Straighten photo ------------------------------------------------------------------------------
+
+/** Where the corner handles start: 5% in from each edge. */
+export const DEFAULT_CORNERS: Quad = [
+  [0.05, 0.05],
+  [0.95, 0.05],
+  [0.95, 0.95],
+  [0.05, 0.95],
+];
+
+/** Sets (or, with undefined, removes) the corners of a photo page. One undoable edit. */
+export function setCorners(pages: readonly PageRef[], uid: string, corners: Quad | undefined): PageRef[] {
+  let changed = false;
+  const out = pages.map((p) => {
+    if (p.uid !== uid) return p;
+    if (editKey({ corners }) === editKey({ corners: p.corners })) return p;
+    changed = true;
+    const { corners: _, ...rest } = p;
+    return corners ? { ...rest, corners: corners.map(([x, y]) => [clamp01(x), clamp01(y)]) as Quad } : rest;
+  });
+  return changed ? out : (pages as PageRef[]);
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/** True when four corners make a usable outline: convex, in order, and not too small. */
+export function isUsableQuad(q: Quad, widthPx: number, heightPx: number): boolean {
+  const pts = q.map(([x, y]) => [x * widthPx, y * heightPx]);
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [a, b, c] = [pts[i], pts[(i + 1) % 4], pts[(i + 2) % 4]];
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cross) < 1e-6) return false;
+    if (sign === 0) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  const [w, h] = warpSize(q, widthPx, heightPx, Infinity);
+  return w >= 16 && h >= 16;
+}

@@ -6,6 +6,7 @@
   import { config } from '../pdfmango.config';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import PhotoEditor from './PhotoEditor.svelte';
 
   type Props = { uid: string | null; onclose: () => void; onnavigate: (uid: string) => void };
   let { uid, onclose, onnavigate }: Props = $props();
@@ -19,6 +20,9 @@
   const source = $derived(page ? app.sources.get(page.sourceId) : undefined);
   const edit = $derived(page ? editOf(page) : undefined);
   const busy = $derived(app.exporting || batch.running);
+  // Straighten photo works on photo pages that have not been split.
+  const canFlatten = $derived(config.features.straightenPhoto && source?.kind === 'image' && !page?.crop);
+  let photoOpen = $state(false);
   // Result of the last tool used here, shown under the page (cleared when the page changes).
   let status = $state('');
   let statusFor = '';
@@ -139,8 +143,13 @@
     <div class="stage" class:loading>
       <canvas bind:this={canvas} class:rotated style:transform="rotate({page.addedRotation}deg)"></canvas>
     </div>
-    {#if config.features.straighten || config.features.fineRotate}
+    {#if config.features.straighten || config.features.fineRotate || canFlatten}
       <div class="tools">
+        {#if canFlatten}
+          <button type="button" class="btn tool" onclick={() => (photoOpen = true)} disabled={busy}>
+            <Icon name="straightenPhoto" /> Straighten photo
+          </button>
+        {/if}
         {#if config.features.straighten}
           <button type="button" class="btn tool" onclick={straighten} disabled={busy}>
             <Icon name="straighten" /> Straighten
@@ -178,6 +187,8 @@
     </div>
   {/if}
 </dialog>
+
+<PhotoEditor page={photoOpen ? page : null} onclose={() => (photoOpen = false)} />
 
 <style>
   .preview {

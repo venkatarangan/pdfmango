@@ -98,4 +98,67 @@ write('tilted-scans.pdf', imagePdf(tilts.map((deg, i) => {
   src.destroy();
 }
 
+// ---- Straighten photo -------------------------------------------------------------------------------
+// A phone photo of one printed sheet, shot at an angle, lying on a darker table. The sheet's corners
+// sit at SHEET (pixels, top-left, top-right, bottom-right, bottom-left); the tests use them.
+export const SHEET = [[372, 148], [1262, 236], [1338, 1092], [246, 1010]];
+
+/** Solves the 8 x 8 system for the homography taking each `from` point to its `to` point. */
+function homography(from, to) {
+  const A = [], bv = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = from[i], [u, v] = to[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); bv.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); bv.push(v);
+  }
+  for (let c = 0; c < 8; c++) { // Gaussian elimination with partial pivoting
+    let p = c;
+    for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    [A[c], A[p]] = [A[p], A[c]]; [bv[c], bv[p]] = [bv[p], bv[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+      bv[r] -= f * bv[c];
+    }
+  }
+  const h = bv.map((v, i) => v / A[i][i]);
+  return (x, y) => { const w = h[6] * x + h[7] * y + 1; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; };
+}
+
+{
+  const page = text50.loadPage(4);
+  const sheet = page.toPixmap(mupdf.Matrix.scale(150 / 72, 150 / 72), mupdf.ColorSpace.DeviceRGB, false, true);
+  page.destroy();
+  const [sw, sh] = [sheet.getWidth(), sheet.getHeight()];
+  const src = sheet.getPixels();
+  const W = 1600, H = 1200;
+  const photo = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, [0, 0, W, H], false);
+  const out = photo.getPixels();
+  const toSheet = homography(SHEET, [[0, 0], [sw, 0], [sw, sh], [0, sh]]);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const o = (y * W + x) * 3;
+      const [u, v] = toSheet(x + 0.5, y + 0.5);
+      if (u >= 0 && v >= 0 && u < sw - 1 && v < sh - 1) {
+        // Bilinear sample of the sheet, a little warm and dim, like paper under a lamp.
+        const x0 = Math.floor(u), y0 = Math.floor(v), fx = u - x0, fy = v - y0;
+        for (let c = 0; c < 3; c++) {
+          const at = (xx, yy) => src[(yy * sw + xx) * 3 + c];
+          const val = (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+          out[o + c] = Math.max(0, Math.min(255, val * [0.94, 0.9, 0.82][c] + (rnd() - 0.5) * 10));
+        }
+      } else {
+        const n = (rnd() - 0.5) * 24; // wooden table
+        out[o] = 96 + n; out[o + 1] = 66 + n; out[o + 2] = 44 + n;
+      }
+    }
+  }
+  write('photo-of-sheet.jpg', photo.asJPEG(88, false).slice());
+  photo.destroy();
+  sheet.destroy();
+}
+
 text50.destroy();

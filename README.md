@@ -31,6 +31,7 @@ A free, open-source PDF tool that runs entirely in your browser. Merge and rearr
 **Fix scans and photos**
 - **Straighten** a page that was scanned or photographed slightly crooked (up to 15°). PDFMango measures the tilt from the lines of text and turns the page back without redrawing it, so text stays selectable. A page with no clear lines of text is left alone.
 - **Fine rotate:** in the page preview, a slider turns a page by up to 10° either way, in 0.1° steps, with Reset.
+- **Straighten photo:** for a phone photo of one sheet taken at an angle, drag four corners onto the corners of the sheet and it becomes a flat, cropped page. The flattened photo is saved as a JPEG; the original stays until you save, so Cancel and Undo always work.
 
 **Save and share**
 - **Save all pages** as one PDF, with four compression levels: Lossless, Balanced, Strong and Scan.
