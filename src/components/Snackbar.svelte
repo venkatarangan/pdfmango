@@ -18,7 +18,7 @@
           }}>{notify.snack.action.label}</button
         >
       {/if}
-      <IconButton icon="close" label="Dismiss" onclick={() => notify.dismiss()} tipAbove />
+      <IconButton icon="close" label="Dismiss" onclick={() => notify.dismiss()} tipAbove tipEnd />
     </div>
   {/key}
 {/if}

@@ -158,7 +158,7 @@
   {#if page}
     <div class="top">
       <span class="title">Page {index + 1} of {app.pages.length} · <span class="src">{source?.name}</span></span>
-      <IconButton icon="close" label="Close preview" onclick={onclose} />
+      <IconButton icon="close" label="Close preview" onclick={onclose} tipEnd />
     </div>
     <div class="stage" class:loading bind:clientWidth={stageW} bind:clientHeight={stageH}>
       <canvas
@@ -237,6 +237,7 @@
     border: 0;
     background: #1c1b1f;
     color: #fff;
+    overflow: hidden;
   }
   .preview[open] {
     display: grid;

@@ -228,6 +228,7 @@
     border: 0;
     background: #1c1b1f;
     color: #fff;
+    overflow: hidden;
   }
   .editor[open] {
     display: grid;

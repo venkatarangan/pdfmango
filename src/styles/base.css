@@ -269,6 +269,14 @@ select {
     top: auto;
     bottom: calc(100% + 6px);
   }
+  /* A button at the right edge of the screen: the tooltip lines up with its right side, so it never
+     pokes past the edge (that made a scrollbar flicker on and off while hovering). */
+  .tip.tip-end:hover::after,
+  .tip.tip-end:focus-visible::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
   /* A button whose menu is open shows the menu, not its tooltip. */
   .tip[aria-expanded='true']::after {
     content: none;

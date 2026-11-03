@@ -102,7 +102,7 @@
         <strong>{built.name}</strong>
         <span>{plural(pageSizes.length, 'page')} · {resultMessage(built)}</span>
       </div>
-      <IconButton icon="close" label="Back" onclick={onclose} />
+      <IconButton icon="close" label="Back" onclick={onclose} tipEnd />
     </header>
     <div class="size" class:warn={!verdict?.ok}>
       <span class="big">{formatBytes(built.outputSize)}</span>
