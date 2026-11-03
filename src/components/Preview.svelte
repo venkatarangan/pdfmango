@@ -14,6 +14,10 @@
   let el: HTMLDialogElement | undefined = $state();
   let canvas: HTMLCanvasElement | undefined = $state();
   let loading = $state(false);
+  // The stage is measured so the whole page can be fitted inside it, whatever its shape or turn.
+  let stageW = $state(0);
+  let stageH = $state(0);
+  let pixels = $state({ w: 0, h: 0 });
 
   const index = $derived(uid ? app.pages.findIndex((p) => p.uid === uid) : -1);
   const page = $derived(index >= 0 ? app.pages[index] : null);
@@ -26,7 +30,7 @@
   const canSplit = $derived(config.features.splitSpreads && !!page);
   function openSplit() {
     if (!page) return;
-    splitUi.target = page.spread ? { mode: 'review', ids: [page.spread.id] } : { mode: 'manual', uid: page.uid };
+    splitUi.target = page.spread ? { mode: 'review', ids: [page.spread.id], adjust: true } : { mode: 'manual', uid: page.uid };
   }
   // Result of the last tool used here, shown under the page (cleared when the page changes).
   let status = $state('');
@@ -63,6 +67,7 @@
         if (stale) return bmp.close();
         target.width = bmp.width;
         target.height = bmp.height;
+        pixels = { w: bmp.width, h: bmp.height };
         target.getContext('2d')?.drawImage(bmp, 0, 0);
         shown?.bmp.close();
         shown = { bmp, angle };
@@ -128,6 +133,16 @@
   }
 
   const rotated = $derived(page ? page.addedRotation % 180 !== 0 : false);
+  /** CSS size of the canvas: as large as fits, never cropped (sides swap when turned by 90 or 270). */
+  const fit = $derived.by(() => {
+    const availW = Math.max(0, stageW - 16);
+    const availH = Math.max(0, stageH - 16);
+    if (!pixels.w || !pixels.h || !availW || !availH) return null;
+    const boxW = rotated ? availH : availW;
+    const boxH = rotated ? availW : availH;
+    const scale = Math.min(boxW / pixels.w, boxH / pixels.h);
+    return { w: Math.floor(pixels.w * scale), h: Math.floor(pixels.h * scale) };
+  });
 </script>
 
 <dialog
@@ -145,8 +160,14 @@
       <span class="title">Page {index + 1} of {app.pages.length} · <span class="src">{source?.name}</span></span>
       <IconButton icon="close" label="Close preview" onclick={onclose} />
     </div>
-    <div class="stage" class:loading>
-      <canvas bind:this={canvas} class:rotated style:transform="rotate({page.addedRotation}deg)"></canvas>
+    <div class="stage" class:loading bind:clientWidth={stageW} bind:clientHeight={stageH}>
+      <canvas
+        bind:this={canvas}
+        style:width={fit ? `${fit.w}px` : undefined}
+        style:height={fit ? `${fit.h}px` : undefined}
+        style:visibility={fit ? undefined : 'hidden'}
+        style:transform="translate(-50%, -50%) rotate({page.addedRotation}deg)"
+      ></canvas>
     </div>
     {#if config.features.straighten || config.features.fineRotate || canFlatten || canSplit}
       <div class="tools">
@@ -209,12 +230,13 @@
     margin: 0;
     padding: 0;
     border: 0;
-    background: rgb(28 27 31 / 0.92);
+    background: #1c1b1f;
     color: #fff;
   }
   .preview[open] {
     display: grid;
-    grid-template-rows: auto 1fr auto auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-columns: minmax(0, 1fr);
   }
   .preview::backdrop {
     background: transparent;
@@ -248,19 +270,26 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    flex-wrap: wrap;
+    max-width: 100%;
     justify-content: center;
   }
   .fine label {
     font-weight: 600;
   }
   .fine input {
+    flex: 1 1 56px;
+    min-width: 56px;
     width: min(260px, 50vw);
     accent-color: var(--mango);
   }
   .fine output {
     min-width: 4.5ch;
     font-variant-numeric: tabular-nums;
+  }
+  .fine output,
+  .fine label,
+  .fine .tool {
+    flex: none;
   }
   .tool.small {
     min-height: 36px;
@@ -295,22 +324,17 @@
   }
   .stage {
     position: relative;
-    display: grid;
-    place-items: center;
     min-height: 0;
-    padding: 8px;
+    min-width: 0;
     overflow: hidden;
   }
   canvas {
-    max-width: 100%;
-    max-height: 100%;
+    position: absolute;
+    left: 50%;
+    top: 50%;
     background: #fff;
     box-shadow: 0 4px 24px rgb(0 0 0 / 0.4);
     transition: transform var(--motion) var(--ease);
-  }
-  canvas.rotated {
-    max-width: calc(100dvh - 200px);
-    max-height: calc(100vw - 16px);
   }
   .loading canvas {
     opacity: 0.6;

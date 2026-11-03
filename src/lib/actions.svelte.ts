@@ -507,7 +507,7 @@ class SplitPrefs {
 export const splitPrefs = new SplitPrefs();
 
 /** Split editor requests: one page to split by hand, or a list of spreads to check one after another. */
-export type SplitTarget = { mode: 'manual'; uid: string } | { mode: 'review'; ids: string[] };
+export type SplitTarget = { mode: 'manual'; uid: string } | { mode: 'review'; ids: string[]; adjust?: true };
 class SplitUi {
   target = $state<SplitTarget | null>(null);
 }

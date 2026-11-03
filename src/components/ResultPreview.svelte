@@ -149,7 +149,8 @@
   }
   .result[open] {
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
   .result::backdrop {
     background: var(--scrim);
@@ -208,13 +209,13 @@
     flex: 1;
     min-width: 0;
   }
-  .title strong,
-  .title span {
+  .title strong {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .title span {
+    overflow-wrap: anywhere;
     color: var(--text-2);
     font-size: 13px;
   }
@@ -225,6 +226,8 @@
     gap: 16px;
     padding: 16px;
     overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
     overscroll-behavior: contain;
   }
   figure {

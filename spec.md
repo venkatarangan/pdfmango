@@ -505,7 +505,7 @@ Build in milestone order, run the spike first, and stop to report whenever reali
   - A wide page with no clear spine uses the book's median spine and gets a **Check split** badge. If no page in the batch is confident, those pages are left alone.
   - Covers and single pages are left alone.
   - A **Review** editor steps through the unsure splits. It has a draggable line, an overlap choice, and Apply, Skip and Don't split this page. The same editor is used for the per-page split.
-- **Split (the halves):** PDF halves are crops, set with `/MediaBox` and `/CropBox`. Existing rotation is handled. The hidden half stays in the file, except with Scan compression, which redraws the pages. Photo halves are cut with `Pixmap.warp`.
+- **Split (the halves):** PDF halves are crops, set with `/MediaBox` and `/CropBox`. Existing rotation is handled. The hidden half stays in the file. The Scan level redraws the pages and removes it. If Scan can't make the file smaller, the safety net saves the Lossless file and the half stays. Photo halves are cut with `Pixmap.warp`.
 - **Split options:** overlap of none, 1% or 2% (each half reaches past the spine), and **Right page first** for right-to-left books.
 - **Undo:** a whole-book split is one undo step.
 

@@ -142,7 +142,8 @@
     splitUi.target = null;
   }
 
-  const title = $derived(reviewing ? `Check split${ids.length > 1 ? ` · ${step + 1} of ${ids.length}` : ''}` : 'Split into two pages');
+  const adjusting = $derived(target?.mode === 'review' && !!target.adjust);
+  const title = $derived(adjusting ? 'Adjust split' : reviewing ? `Check split${ids.length > 1 ? ` · ${step + 1} of ${ids.length}` : ''}` : 'Split into two pages');
 </script>
 
 <dialog
@@ -157,7 +158,7 @@
   {#if target && whole}
     <div class="top">
       <h2 id="split-title">{title}</h2>
-      <p class="hint">Drag the line onto the spine, between the two pages. {source?.kind === 'image' ? 'The photo is cut in two.' : 'On PDF pages the hidden half stays inside the file, as with any crop; the Scan level of compression removes it.'}</p>
+      <p class="hint">Drag the line onto the spine, between the two pages. {source?.kind === 'image' ? 'The photo is cut in two.' : 'On PDF pages the hidden half stays inside the file, as with any crop; the Scan level removes it. If Scan cannot make the file smaller, it is saved as Lossless and the half stays.'}</p>
     </div>
     <div class="stage" bind:clientWidth={stageW} bind:clientHeight={stageH}>
       <div class="wrap" style:width="{fit.w}px" style:height="{fit.h}px" style:transform="translate(-50%, -50%) rotate({rot}deg)">
@@ -201,7 +202,11 @@
       <div class="buttons">
         {#if reviewing}
           <button type="button" class="btn btn-text light" onclick={keepWhole}>Don't split this page</button>
-          <button type="button" class="btn btn-text light" onclick={skip}>Skip</button>
+          {#if adjusting}
+            <button type="button" class="btn btn-text light" onclick={close}>Cancel</button>
+          {:else}
+            <button type="button" class="btn btn-text light" onclick={skip}>Skip</button>
+          {/if}
         {:else}
           <button type="button" class="btn btn-text light" onclick={close}>Cancel</button>
         {/if}

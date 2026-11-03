@@ -30,7 +30,7 @@
     </div>
   </fieldset>
   <label class="check"><input type="checkbox" bind:checked={splitPrefs.rightFirst} /> Right page first (books read right to left)</label>
-  <p class="note">Splits that need a look get a <strong>Check split</strong> badge. On PDF pages the hidden half stays in the file, as with any crop; Scan compression removes it.</p>
+  <p class="note">Splits that need a look get a <strong>Check split</strong> badge. On PDF pages the hidden half stays in the file, as with any crop; the Scan level removes it. If Scan can't make a file smaller, it is saved as Lossless and the half stays.</p>
   {#snippet actions()}
     <button type="button" class="btn btn-text" onclick={onclose}>Cancel</button>
     <button type="button" class="btn btn-filled" onclick={run}>Split</button>

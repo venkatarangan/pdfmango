@@ -8,6 +8,12 @@
 - **Split book spreads:** turns scans or photos of two facing pages into two pages, for a whole book at once, as one undoable step. It finds the spine (a dark fold or a white gap), straightens a slanted spine first, and leaves covers and single pages alone. Splits it is unsure about get a **Check split** badge and a Review that steps through them. Any page can also be split by hand from the page preview. Choose an overlap (none, 1% or 2%) and Right page first for right-to-left books.
 - Each new tool can be switched off in `src/pdfmango.config.ts` (`features`).
 - Fixed: on 320 px phones the app bar and the About page no longer scroll sideways, and the phone's More menu stays on screen.
+- Fixed: the page preview now fits the whole page on any screen, including turned and landscape pages, and its background is solid, so the bars behind no longer show through.
+- Fixed: in the page preview, the Fine rotate slider and Reset button stay inside the screen on phones.
+- Fixed: the download preview no longer scrolls sideways on 320 px phones when the summary line is long.
+- Fixed: on 320 px phones the More menu now sits above the message bar and below the selection bar, and scrolls if it is tall.
+- Changed: Adjust split (from the page preview) is titled "Adjust split" and has Cancel instead of Skip.
+- Changed: the Split texts now say the Scan level removes the hidden half, and that a file Scan cannot make smaller is saved as Lossless, with the half still in it.
 - Docs: the README and About page now say that signing and comments are left out on purpose, because Google Chrome on Windows, Mac and Linux can do both.
 
 ## 0.3.0 (October 2026)

@@ -25,3 +25,6 @@ backup.bat
 # Notes for Claude and build session notes (kept local)
 CLAUDE.md
 session-notes*.md
+
+# The owner's own sample files for manual testing (kept local)
+testsamples/

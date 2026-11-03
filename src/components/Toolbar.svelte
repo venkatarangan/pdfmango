@@ -174,7 +174,7 @@
 </div>
 
 <!-- Phones: bottom bar of labelled icons, Save at the right end -->
-<div class="bottombar" role="toolbar" aria-label="Page actions">
+<div class="bottombar" class:menu-open={menuOpen === 'phone'} class:selecting={count > 0} role="toolbar" aria-label="Page actions">
   <button type="button" class="bb" onclick={onadd} disabled={busy}><Icon name="add" /><span>Add</span></button>
   <button type="button" class="bb" aria-label="Rotate {scope} left" onclick={() => rotate(-90)} disabled={empty || busy}><Icon name="rotateLeft" /><span>Left</span></button>
   <button type="button" class="bb" aria-label="Rotate {scope} right" onclick={() => rotate(90)} disabled={empty || busy}><Icon name="rotateRight" /><span>Right</span></button>
@@ -288,6 +288,14 @@
       background: var(--surface);
       border-top: 1px solid var(--outline);
       box-shadow: 0 -1px 3px rgb(0 0 0 / 0.06);
+    }
+    /* While its menu is open the bar rises above the snackbar (z-index 70). */
+    .bottombar.menu-open {
+      z-index: 80;
+    }
+    /* Keep the menu below the fixed selection bar (up to about 150 px tall on 320 px phones). */
+    .bottombar.selecting .menu {
+      max-height: calc(100dvh - 64px - 160px - 16px);
     }
     /* The selection bar is fixed over the app bar, so its sticky parent must sit above the app bar too. */
     .bars {
