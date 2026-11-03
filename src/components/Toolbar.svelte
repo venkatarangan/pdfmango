@@ -365,8 +365,10 @@
   .menu {
     position: absolute;
     bottom: calc(100% + 8px);
-    left: 0;
-    min-width: 220px;
+    right: 0;
+    left: auto;
+    min-width: min(220px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
     max-height: calc(100dvh - 160px);
     overflow-y: auto;
     padding: 8px 0;
@@ -374,7 +376,16 @@
     background: var(--bg);
     box-shadow: var(--elev-3);
   }
+  /* Phone: anchor the menu to the bottom bar (not the button) so it stays on screen. */
+  .bottombar .more {
+    position: static;
+  }
+  .bottombar .menu {
+    right: 8px;
+  }
   .menu.down {
+    right: auto;
+    left: 0;
     bottom: auto;
     top: calc(100% + 8px);
     z-index: 20;

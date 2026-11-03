@@ -305,9 +305,21 @@ select {
 @media (max-width: 360px) {
   .brand {
     gap: 6px;
+    font-size: 15px;
+  }
+  .appbar {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: 2px;
+  }
+  .brand img {
+    width: 28px;
+    height: 28px;
   }
   .appbar nav a {
     padding: 0 3px;
     font-size: 14px;
+  }
+  .appbar nav .icon-btn {
+    width: 40px;
   }
 }

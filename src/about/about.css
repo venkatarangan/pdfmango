@@ -48,3 +48,7 @@
 .about .btn {
   font-size: 14px;
 }
+/* Long links (such as the repository address) wrap instead of scrolling sideways on 320 px phones. */
+.about a {
+  overflow-wrap: anywhere;
+}
