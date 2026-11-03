@@ -53,7 +53,16 @@ A free, open-source PDF tool that runs entirely in your browser. Merge and rearr
 | ![Page grid on desktop](docs/screenshots/desktop-grid.png) | ![Page grid on a phone](docs/screenshots/phone-grid.png) |
 | ![Download options on desktop](docs/screenshots/desktop-download.png) | ![Download options on a phone](docs/screenshots/phone-download.png) |
 
-Made with the test files in `tests/fixtures/`.
+**Page tools**
+
+| Desktop | Phone |
+| --- | --- |
+| ![Straighten: a tilted scan turned level, with Crop, Split, Straighten and Fine rotate under the page](docs/screenshots/desktop-straighten.png) | ![Straighten on a phone](docs/screenshots/phone-straighten.png) |
+| ![Split book spreads: a scanned book split into pages, one spread marked Check split](docs/screenshots/desktop-split.png) | ![Split book spreads on a phone](docs/screenshots/phone-split.png) |
+| ![Straighten photo: the four corners placed on the edges of a photographed sheet](docs/screenshots/desktop-straighten-photo.png) | ![Straighten photo on a phone](docs/screenshots/phone-straighten-photo.png) |
+| ![Crop: Auto places the box round the paper of a photographed book](docs/screenshots/desktop-crop.png) | ![Crop on a phone](docs/screenshots/phone-crop.png) |
+
+Made with the test files in `tests/fixtures/` (`npm run build && npm run screenshots`).
 
 ## Privacy and analytics
 
