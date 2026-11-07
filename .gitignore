@@ -28,3 +28,6 @@ session-notes*.md
 
 # The owner's own sample files for manual testing (kept local)
 testsamples/
+
+# Drafts (kept local)
+drafts/
